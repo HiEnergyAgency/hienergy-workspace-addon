@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "validate": "npm run lint && npm run test && npm run check:manifest",
-    "setup:clasp": "bash scripts/setup-clasp.sh",
+    "deploy:create": "clasp create --title \"Hi Energy AI\" --type standalone",
+    "deploy:push": "clasp push",
+    "deploy:open": "clasp open-script",
     "check:manifest": "node scripts/check-manifest.js"
   },
   "devDependencies": {

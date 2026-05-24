@@ -152,41 +152,26 @@ Fix any lint or spec failures before deploying.
 
 ### 2. Create or link the Apps Script project
 
-**Important:** Do **not** copy `.clasp.json.example` to `.clasp.json` before running `clasp create`. That leaves a placeholder script ID and causes `clasp push` to fail with `Request contains an invalid argument`.
+**Enable the Apps Script API first:** [script.google.com/home/usersettings](https://script.google.com/home/usersettings) → turn on **Google Apps Script API**. If you just enabled it, wait 1–2 minutes before running clasp.
 
-**Easiest path (recommended):**
-
-```bash
-chmod +x scripts/setup-clasp.sh
-./scripts/setup-clasp.sh
-```
-
-This removes a bad `.clasp.json` if needed, runs `clasp create`, and pushes your code.
-
-**Manual path — new project:**
+**New project (clasp 3.x):** Use `--type standalone`. The Workspace add-on manifest is in `appsscript.json` — there is no separate `workspace-add-on` project type in clasp 3.
 
 ```bash
 clasp login
-# Only if .clasp.json exists with a placeholder ID:
-rm -f .clasp.json
-
-clasp create --title "Hi Energy AI" --type standalone --rootDir .
-clasp push --force
+cp .clasp.json.example .clasp.json
+clasp create --title "Hi Energy AI" --type standalone
 ```
 
-`clasp create` writes a real `scriptId` into `.clasp.json`. The Workspace add-on config lives in `appsscript.json` — use `--type standalone`, not `workspace-add-on` (removed in clasp 3.x).
+Or: `npm run deploy:create`
 
-**Manual path — existing project:**
+This writes your `scriptId` into `.clasp.json` (gitignored — do not commit).
+
+**Existing project:**
 
 ```bash
 clasp login
-cat > .clasp.json <<'EOF'
-{
-  "scriptId": "PASTE_YOUR_SCRIPT_ID_HERE",
-  "rootDir": "."
-}
-EOF
-clasp push --force
+cp .clasp.json.example .clasp.json
+# Edit .clasp.json and set scriptId to your Apps Script project ID
 ```
 
 Find the script ID in the Apps Script editor under **Project Settings** → **IDs**.
@@ -398,10 +383,9 @@ clasp login
 
 cd hienergy-workspace-addon
 npm install
-npm run validate
-
-# Enable Apps Script API: https://script.google.com/home/usersettings
-./scripts/setup-clasp.sh
+cp .clasp.json.example .clasp.json
+clasp create --title "Hi Energy AI" --type standalone
+clasp push
 ```
 
 Set script properties in the Apps Script UI, then **Deploy** → **Test deployments**.
@@ -463,9 +447,6 @@ curl -X POST https://app.hienergy.ai/mcp \
 |-------|-----|
 | "Auth0 not configured" | Set all four `AUTH0_*` script properties |
 | Callback URL mismatch | Add exact `usercallback` URL to Auth0 allowed callbacks |
-| `Request contains an invalid argument` on push | Delete `.clasp.json` and run `./scripts/setup-clasp.sh`, or set a real `scriptId` (not the example placeholder) |
-| `Project file already exists` on create | `rm .clasp.json` then run `clasp create` again |
-| Apps Script API disabled | Enable at [script.google.com/home/usersettings](https://script.google.com/home/usersettings) |
 | 401 from Hi Energy AI / MCP | Check `AUTH0_AUDIENCE` matches MCP config; user must exist in Hi Energy AI with matching email |
 | Invalid audience | Token `aud` must include `https://api.hienergyrocket.com/mcp` |
 | Contacts not found | User needs Google Contacts; scope `contacts.readonly` must be granted |
@@ -473,6 +454,9 @@ curl -X POST https://app.hienergy.ai/mcp \
 | MCP tool errors | Check Settings for MCP URL; try **Browse MCP tools** to verify `tools/list` works |
 | People API errors | Enable People API advanced service in Apps Script editor |
 | Wrong add-on name in sidebar | Redeploy after `clasp push`; manifest name must be **Hi Energy AI** |
+| `Invalid container file type` | Use `--type standalone`, not `workspace-add-on` (removed in clasp 3.x) |
+| `User has not enabled the Apps Script API` | Enable at [script.google.com/home/usersettings](https://script.google.com/home/usersettings), wait 1–2 min, retry |
+| `Project settings not found` | Run `clasp create` first so `.clasp.json` gets a `scriptId` |
 
 ## Security
 
