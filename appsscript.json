@@ -5,8 +5,15 @@
       {
         "userSymbol": "OAuth2",
         "version": "43",
-        "libraryId": "1B7FSrk5Zi6L1rServiceOzONV4sP1BhCOVyxerMpxPRhNTOV3",
+        "libraryId": "1B7FSrk5Zi6L1rSxxTDgDEUsPzlukDsi4KGuTMorsTQHhGBzBkMun4iDF",
         "developmentMode": false
+      }
+    ],
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "People",
+        "version": "v1",
+        "serviceId": "peopleapi"
       }
     ]
   },
@@ -19,13 +26,6 @@
     "https://www.googleapis.com/auth/gmail.addons.execute",
     "https://www.googleapis.com/auth/gmail.readonly",
     "https://www.googleapis.com/auth/contacts.readonly"
-  ],
-  "enabledAdvancedServices": [
-    {
-      "userSymbol": "People",
-      "version": "v1",
-      "serviceId": "peopleapi"
-    }
   ],
   "addOns": {
     "common": {

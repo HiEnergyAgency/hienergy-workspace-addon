@@ -18,7 +18,7 @@ describe('appsscript.json manifest', function () {
   });
 
   it('enables the People advanced service', function () {
-    expect(manifest.enabledAdvancedServices).toEqual([
+    expect(manifest.dependencies.enabledAdvancedServices).toEqual([
       expect.objectContaining({ userSymbol: 'People', serviceId: 'peopleapi' })
     ]);
   });
