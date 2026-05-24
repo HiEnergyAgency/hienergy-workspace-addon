@@ -417,6 +417,9 @@ var HiEnergySheets = (function () {
     }
     if (exportType === 'contacts') {
       return function (page, limit) {
+        if (typeof HiEnergyApi.searchContacts === 'function') {
+          return HiEnergyApi.searchContacts(query, page, limit);
+        }
         return HiEnergyApi.advertiserContacts(query, page, limit);
       };
     }
@@ -428,7 +431,7 @@ var HiEnergySheets = (function () {
       advertisers: 'search_advertisers',
       deals: 'search_deals',
       transactions: 'search_transactions',
-      contacts: 'get_advertiser_contacts'
+      contacts: 'search_contacts'
     };
     return map[exportType] || 'mcp_export';
   }

@@ -355,11 +355,13 @@ var HiEnergyApi = (function () {
 
     var toolArgs = cleanArgs_({
       advertiser: normalized,
+      q: normalized,
       page: page || null,
       limit: limit || null
     });
     var restQuery = cleanArgs_({
       advertiser: normalized,
+      q: normalized,
       page: page || null,
       limit: limit || null
     });
@@ -370,6 +372,39 @@ var HiEnergyApi = (function () {
       '/advertisers/' + encodeURIComponent(normalized) + '/contacts',
       { query: restQuery }
     );
+  }
+
+  function searchContacts_(query, page, limit) {
+    var normalized = String(query || '').trim();
+    if (!normalized) {
+      return {
+        ok: false,
+        error: 'MISSING_QUERY',
+        message: 'Enter a search term for contacts.'
+      };
+    }
+    var rowLimit = limit || HiEnergyConfig.perTypeLimit;
+    var toolArgs = cleanArgs_({
+      q: normalized,
+      page: page || null,
+      limit: rowLimit
+    });
+    var restQuery = cleanArgs_({
+      q: normalized,
+      page: page || null,
+      limit: rowLimit
+    });
+
+    var result = withToolFallback_(
+      'search_contacts',
+      toolArgs,
+      '/contacts',
+      { query: restQuery }
+    );
+    if (result && result.ok) {
+      return result;
+    }
+    return advertiserContacts_(normalized, page, rowLimit);
   }
 
   function legacyDeals_(query) {
@@ -439,6 +474,7 @@ var HiEnergyApi = (function () {
     searchDeals: searchDeals_,
     searchTransactions: searchTransactions_,
     advertiserContacts: advertiserContacts_,
+    searchContacts: searchContacts_,
     deals: legacyDeals_,
     transactions: legacyTransactions_,
     listMcpTools: listMcpTools_,
