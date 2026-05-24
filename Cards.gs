@@ -853,9 +853,12 @@ var HiEnergyCards = (function () {
                   )
               );
             }
-          } else if (type === 'advertisers') {
+          }
+          var advertiserActionSlug = '';
+          if (type === 'advertisers') {
             var attrs = attrsForRecord_(row);
             var advertiserId = recordId_(row, attrs);
+            advertiserActionSlug = String(attrs.slug || advertiserId || '');
             var directUrl = preferredAdvertiserUrl_(attrs, advertiserId);
             if (directUrl) {
               decorator.setButton(
@@ -868,17 +871,40 @@ var HiEnergyCards = (function () {
                   )
               );
             } else {
-              var slug = attrs.slug || advertiserId;
               decorator.setButton(
                 CardService.newTextButton()
                   .setText('Details')
                   .setOnClickAction(
-                    cardAction_('handleOpenAdvertiser', { id: String(slug) })
+                    cardAction_('handleOpenAdvertiser', { id: advertiserActionSlug })
                   )
               );
             }
           }
           section.addWidget(decorator);
+          if (type === 'advertisers' && advertiserActionSlug) {
+            section.addWidget(
+              CardService.newButtonSet()
+                .addButton(
+                  CardService.newTextButton()
+                    .setText('Find contacts')
+                    .setOnClickAction(
+                      cardAction_('handleCreateAdvertiserContactsSheet', {
+                        advertiser: advertiserActionSlug
+                      })
+                    )
+                )
+                .addButton(
+                  CardService.newTextButton()
+                    .setText('Deals')
+                    .setOnClickAction(
+                      cardAction_('handleAdvertiserDeals', {
+                        id: advertiserActionSlug,
+                        name: labelForRecord_(type, row)
+                      })
+                    )
+                )
+            );
+          }
         });
 
       var shownCount = Math.min(entry.rows.length, HiEnergyConfig.perTypeLimit);
