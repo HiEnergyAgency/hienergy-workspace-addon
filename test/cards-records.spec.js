@@ -182,6 +182,43 @@ describe('HiEnergyCards search results', function () {
     expect(actionFunctionNames()).toContain('handleExportCachedSearchToSheet');
   });
 
+  it('opens advertiser Hi Energy URL using /a/<id> pattern', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{ id: '4242', display_name: 'Alo Yoga', domain: 'aloyoga.com' }],
+            total: 1
+          }
+        }
+      }
+    });
+    const urls = captured
+      .filter(function (entry) {
+        return entry.method === 'setUrl';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(urls).toContain('https://app.hienergy.ai/a/4242');
+  });
+
+  it('falls back to in-app details card when no id is present', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{ display_name: 'Alo Yoga' }],
+            total: 1
+          }
+        }
+      }
+    });
+    expect(actionFunctionNames()).toContain('handleOpenAdvertiser');
+  });
+
   it('uses advertiser export handler when scope is advertisers', function () {
     ctx.HiEnergyCards.searchResults(
       'nike',

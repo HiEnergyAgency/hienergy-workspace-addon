@@ -60,6 +60,14 @@ var HiEnergyCards = (function () {
     return String(n) + ' ' + word + (n === 1 ? '' : 's');
   }
 
+  function advertiserAppUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return HiEnergyConfig.appOrigin + (HiEnergyConfig.advertiserPath || '/a/') + encodeURIComponent(clean);
+  }
+
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
       header_('Settings', 'Sign-in, API keys, and backend')
@@ -579,14 +587,28 @@ var HiEnergyCards = (function () {
 
           if (type === 'advertisers') {
             var attrs = attrsForRecord_(row);
-            var slug = attrs.slug || recordId_(row, attrs);
-            decorator.setButton(
-              CardService.newTextButton()
-                .setText('Open')
-                .setOnClickAction(
-                  cardAction_('handleOpenAdvertiser', { id: String(slug) })
-                )
-            );
+            var advertiserId = recordId_(row, attrs);
+            var directUrl = attrs.url || advertiserAppUrl_(advertiserId);
+            if (directUrl) {
+              decorator.setButton(
+                CardService.newTextButton()
+                  .setText('Open')
+                  .setOpenLink(
+                    CardService.newOpenLink()
+                      .setUrl(directUrl)
+                      .setOpenAs(CardService.OpenAs.FULL_SIZE)
+                  )
+              );
+            } else {
+              var slug = attrs.slug || advertiserId;
+              decorator.setButton(
+                CardService.newTextButton()
+                  .setText('Details')
+                  .setOnClickAction(
+                    cardAction_('handleOpenAdvertiser', { id: String(slug) })
+                  )
+              );
+            }
           }
           section.addWidget(decorator);
         });
@@ -668,8 +690,9 @@ var HiEnergyCards = (function () {
     }
 
     var actions = CardService.newCardSection();
-    var appUrl = attrs.url || (id ? HiEnergyConfig.appOrigin + '/advertisers/' + (attrs.slug || id) : null);
-    var openBtn = openUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl);
+    var appUrl = attrs.url || (id ? advertiserAppUrl_(id) : null);
+    var openBtn = filledOpenUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl) ||
+      openUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl);
     if (openBtn) {
       actions.addWidget(openBtn);
     }
