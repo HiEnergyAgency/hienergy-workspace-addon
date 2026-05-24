@@ -664,7 +664,7 @@ var HiEnergySheets = (function () {
       if (!resp || !resp.ok) {
         continue;
       }
-      var rows = (resp.body && resp.body.data) || (Array.isArray(resp.body) ? resp.body : []);
+      var rows = extractRows_(resp.body);
       if (!rows.length) {
         continue;
       }
@@ -912,11 +912,12 @@ var HiEnergySheets = (function () {
         exhausted: !!exported.exhausted
       };
 
+      var sharedTarget = exported.spreadsheetId || targetSpreadsheetId;
       var transactionsAddition = exportSecondaryTab_(
         'transactions',
         { query: normalized, days: 30 },
         advertiserDeadline,
-        exported.spreadsheetId || targetSpreadsheetId
+        sharedTarget
       );
       if (transactionsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
@@ -927,19 +928,34 @@ var HiEnergySheets = (function () {
         };
       }
 
-      var contactsAddition = appendContactsForAdvertisers_(
-        exported.advertiserBatch || [],
+      var contactsAddition = exportSecondaryTab_(
+        'contacts',
+        { query: normalized },
         advertiserDeadline,
-        normalized,
-        exported.spreadsheetId || targetSpreadsheetId
+        sharedTarget
       );
       if (contactsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
         exported.rowCount += contactsAddition.rowCount;
         exported.byType.contacts = {
           rowCount: contactsAddition.rowCount,
-          exhausted: true
+          exhausted: !!contactsAddition.exhausted
         };
+      } else {
+        var perAdvertiser = appendContactsForAdvertisers_(
+          exported.advertiserBatch || [],
+          advertiserDeadline,
+          normalized,
+          sharedTarget
+        );
+        if (perAdvertiser.rowCount) {
+          exported.sheetCount = (exported.sheetCount || 1) + 1;
+          exported.rowCount += perAdvertiser.rowCount;
+          exported.byType.contacts = {
+            rowCount: perAdvertiser.rowCount,
+            exhausted: true
+          };
+        }
       }
       HiEnergyMcpExport.cacheAdvertiserSearch(normalized, mode, {
         ok: true,

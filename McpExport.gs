@@ -458,7 +458,23 @@ var HiEnergyMcpExport = (function () {
   }
 
   function tablesFromContactsBody_(body, options) {
-    var rows = (body && body.data) || (Array.isArray(body) ? body : []);
+    var rows = [];
+    if (Array.isArray(body)) {
+      rows = body;
+    } else if (body && Array.isArray(body.data)) {
+      rows = body.data;
+    } else if (body && body.data && Array.isArray(body.data.data)) {
+      rows = body.data.data;
+    } else if (body && Array.isArray(body.contacts)) {
+      rows = body.contacts;
+    } else if (
+      body &&
+      body.results &&
+      body.results.contacts &&
+      Array.isArray(body.results.contacts.data)
+    ) {
+      rows = body.results.contacts.data;
+    }
     if (!rows.length) {
       return [];
     }
@@ -489,17 +505,51 @@ var HiEnergyMcpExport = (function () {
     if (toolName === 'search_transactions') {
       return tablesFromTransactionsBody_(body);
     }
-    if (toolName === 'get_advertiser_contacts') {
+    if (
+      toolName === 'get_advertiser_contacts' ||
+      toolName === 'search_contacts'
+    ) {
       return tablesFromContactsBody_(body, options);
     }
 
-    return [
-      {
-        name: 'MCP Data',
-        headers: ['JSON'],
-        rows: [[JSON.stringify(body)]]
+    return autoDetectTables_(body);
+  }
+
+  function autoDetectTables_(body) {
+    if (!body) {
+      return [];
+    }
+    var candidates = [];
+    if (Array.isArray(body)) {
+      candidates = body;
+    } else if (Array.isArray(body.data)) {
+      candidates = body.data;
+    } else if (body.data && Array.isArray(body.data.data)) {
+      candidates = body.data.data;
+    }
+    if (!candidates.length) {
+      return [];
+    }
+    var sample = attrs_(candidates[0]);
+    var detected = sample && sample.type;
+    if (!detected) {
+      if (candidates[0] && candidates[0].type) {
+        detected = candidates[0].type;
       }
-    ];
+    }
+    if (detected === 'contact' || sample.given_name || sample.email) {
+      return tablesFromContactsBody_({ data: candidates }, {});
+    }
+    if (detected === 'advertiser' || sample.publisher_name || sample.domain) {
+      return tablesFromAdvertiserList_(candidates);
+    }
+    if (detected === 'deal' || sample.coupon_code || sample.discount) {
+      return tablesFromDealsBody_({ data: candidates });
+    }
+    if (detected === 'transaction' || sample.commission_amount || sample.sale_amount) {
+      return tablesFromTransactionsBody_({ data: candidates });
+    }
+    return [];
   }
 
   function summarizeDeals_(deals) {
