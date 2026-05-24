@@ -40,6 +40,7 @@ Logos match the **Hi Energy AI Chrome extension** (`icons/icon128.png`, extensio
 
 | Item | Value |
 |------|-------|
+| GCP project | `hi-energy-workspace-app` ([dashboard](https://console.cloud.google.com/home/dashboard?project=hi-energy-workspace-app)) |
 | Script ID | `1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4` |
 | OAuth callback | `https://script.google.com/macros/d/1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4/usercallback` |
 | Auth0 audience | `https://api.hienergyrocket.com/mcp` |

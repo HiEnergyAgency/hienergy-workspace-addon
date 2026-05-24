@@ -283,11 +283,8 @@ Publishing assets and copy live in [`marketplace/`](./marketplace/). Start with 
 **Steps (summary):**
 
 1. Complete a production deployment (step 7)
-2. Link a **standard GCP project** to Apps Script (Project Settings → GCP project)
-3. Configure **OAuth consent screen** — upload `logo-120.png`, set privacy/terms to `https://app.hienergy.ai/privacy_policy` and `https://app.hienergy.ai/terms_of_service`
-4. Submit **OAuth verification** with scope text from `oauth-verification.md` and a demo video per `demo-video-script.md`
-5. Create listing in [Google Workspace Marketplace SDK](https://console.cloud.google.com/marketplace) using `listing-copy.md` and assets above
-6. Link Apps Script ID `1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4`
+2. Link GCP project **`hi-energy-workspace-app`** to Apps Script ([dashboard](https://console.cloud.google.com/home/dashboard?project=hi-energy-workspace-app) → copy project number)
+3. Run `npm run create:app` to open Marketplace SDK + OAuth setup for that project
 
 Screenshot mockups are included for draft listings; replace with real Gmail captures before final public review when possible.
 
@@ -437,30 +434,38 @@ On every push to `main`, GitHub Actions:
 2. `clasp push --force` to the Apps Script project in `.github/clasp.json`
 3. Updates the production deployment via `clasp deploy -i …`
 
-**One-time setup** — add repository secrets at GitHub → Settings → Secrets and variables → Actions:
+**One-time setup** — repository secrets (required by CI):
 
-| Secret | Value |
-|--------|--------|
+| Secret | Purpose |
+|--------|---------|
 | `CLASPRC_JSON` | Full contents of `~/.clasprc.json` after `clasp login` |
-| `APPS_SCRIPT_DEPLOYMENT_ID` | `AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc` |
+| `APPS_SCRIPT_DEPLOYMENT_ID` | Production add-on deployment ID |
 
-Print copy-paste instructions locally:
+Repository variables (reference only — optional):
+
+| Variable | Value |
+|----------|--------|
+| `APPS_SCRIPT_ID` | `1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4` |
+| `GCP_PROJECT_ID` | `hi-energy-workspace-app` |
+
+Set or refresh everything via GitHub CLI:
 
 ```bash
-chmod +x scripts/print-clasp-github-secrets.sh
-./scripts/print-clasp-github-secrets.sh
+npm run setup:github-secrets
 ```
 
-Or with GitHub CLI:
+Or manually:
 
 ```bash
-gh secret set CLASPRC_JSON < ~/.clasprc.json
-gh secret set APPS_SCRIPT_DEPLOYMENT_ID --body 'AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc'
+gh secret set CLASPRC_JSON < ~/.clasprc.json --repo HiEnergyAgency/hienergy-workspace-addon
+gh secret set APPS_SCRIPT_DEPLOYMENT_ID --body 'AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc' --repo HiEnergyAgency/hienergy-workspace-addon
+gh variable set APPS_SCRIPT_ID --body '1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4' --repo HiEnergyAgency/hienergy-workspace-addon
+gh variable set GCP_PROJECT_ID --body 'hi-energy-workspace-app' --repo HiEnergyAgency/hienergy-workspace-addon
 ```
 
-Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login` and update the secret). Auth0 script properties are **not** in git — set those once in the Apps Script UI.
+Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login`, then `npm run setup:github-secrets`).
 
-Or run the setup helper from the Apps Script editor (edit placeholder values first):
+**Not in GitHub:** Auth0 credentials (`AUTH0_*`) live in Apps Script **Project Settings → Script properties** only. Set once in the Apps Script editor:
 
 ```javascript
 configureAuth0ScriptProperties();

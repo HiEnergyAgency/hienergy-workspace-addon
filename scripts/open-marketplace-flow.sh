@@ -4,56 +4,44 @@
 
 set -euo pipefail
 
-SCRIPT_ID="1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4"
-DEPLOYMENT_ID="AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc"
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+CONFIG="$REPO_ROOT/marketplace/gcp-project.json"
 ASSETS="$REPO_ROOT/marketplace/assets"
 
-echo "Hi Energy AI — Marketplace submission helper"
-echo "Script ID: $SCRIPT_ID"
+SCRIPT_ID="$(node -pe "JSON.parse(require('fs').readFileSync('$CONFIG','utf8')).appsScriptProjectId")"
+DEPLOYMENT_ID="$(node -pe "JSON.parse(require('fs').readFileSync('$CONFIG','utf8')).appsScriptDeploymentId")"
+GCP_PROJECT="$(node -pe "JSON.parse(require('fs').readFileSync('$CONFIG','utf8')).projectId")"
+
+echo "Hi Energy AI Workspace Add-on — Marketplace helper"
+echo "GCP project: $GCP_PROJECT"
+echo "Script ID:   $SCRIPT_ID"
 echo "Deployment:  $DEPLOYMENT_ID"
 echo ""
-echo "Opening pages in your default browser (use patrick@hienergy.ai)..."
-echo ""
 
+open "https://console.cloud.google.com/home/dashboard?project=${GCP_PROJECT}"
+sleep 1
 open "https://script.google.com/home/projects/${SCRIPT_ID}/settings"
 sleep 1
 open "https://script.google.com/home/projects/${SCRIPT_ID}/deployments"
 sleep 1
-open "https://console.cloud.google.com/apis/credentials/consent"
+open "https://console.cloud.google.com/flows/enableapi?apiid=appsmarket-component.googleapis.com&project=${GCP_PROJECT}"
 sleep 1
-open "https://console.cloud.google.com/marketplace/products/producer"
+open "https://console.cloud.google.com/apis/api/appsmarket-component.googleapis.com/googleapps_sdk?project=${GCP_PROJECT}"
 sleep 1
-
-echo "Assets folder:"
+open "https://console.cloud.google.com/apis/credentials/consent?project=${GCP_PROJECT}"
+sleep 1
 open "$ASSETS"
 
 cat <<EOF
 
 --- Do these in order ---
 
-1) Apps Script → Project Settings
-   • Link a standard GCP project (not default)
-   • Confirm script properties: AUTH0_*
-
-2) Apps Script → Deploy → Manage deployments
-   • Edit deployment "$DEPLOYMENT_ID"
-   • Ensure type is **Add-on** (create new Add-on deployment if needed)
-   • Version: latest (@2)
-
-3) GCP → OAuth consent screen (same linked project)
-   • App name: Hi Energy AI Workspace Add-on
-   • Logo: marketplace/assets/logo-120.png
-   • Privacy: https://app.hienergy.ai/privacy_policy
-   • Terms:   https://app.hienergy.ai/terms_of_service
-   • Scopes: all from appsscript.json (incl. gmail.readonly, contacts.readonly)
-   • Submit for verification (public) OR set Internal (org only)
-
-4) GCP → Marketplace SDK → Create listing → Google Workspace add-on
-   • Apps Script ID: $SCRIPT_ID
-   • Copy from marketplace/listing-copy.md
-   • Upload logos + screenshots from marketplace/assets/
-   • Submit for review
+1) GCP dashboard → copy **Project number** for ${GCP_PROJECT}
+2) Apps Script → Project Settings → link that GCP project number
+3) Enable Marketplace SDK (tab opened) if not already enabled
+4) App Configuration → deployment ID: ${DEPLOYMENT_ID}
+5) OAuth consent → app name: Hi Energy AI Workspace Add-on
+6) Store listing → copy from marketplace/listing-copy.md
 
 Full checklist: marketplace/checklist.md
 
