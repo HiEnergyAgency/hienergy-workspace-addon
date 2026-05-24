@@ -50,9 +50,30 @@ describe('HiEnergySheets.paginateRows', function () {
       return { ok: true, body: { data: rows, meta: { total: 5000 } } };
     };
 
-    const result = ctx.HiEnergySheets.paginateRows(fetcher);
+    const result = ctx.HiEnergySheets.paginateRows(fetcher, { maxRows: 500 });
     expect(result.body.data).toHaveLength(500);
     expect(result.body.meta.truncatedAt).toBe(500);
+  });
+
+  it('fetches all pages of 100 until the API returns no more rows', function () {
+    const ctx = loadSheets();
+    let rowId = 0;
+    const fetcher = function (page, limit) {
+      if (rowId >= 250) {
+        return { ok: true, body: { data: [] } };
+      }
+      const rows = [];
+      const count = Math.min(limit, 250 - rowId);
+      for (let i = 0; i < count; i += 1) {
+        rowId += 1;
+        rows.push({ id: String(rowId) });
+      }
+      return { ok: true, body: { data: rows } };
+    };
+
+    const result = ctx.HiEnergySheets.paginateRows(fetcher, { fetchAll: true });
+    expect(result.body.data).toHaveLength(250);
+    expect(result.pagination.exhausted).toBe(true);
   });
 
   it('dedupes rows by id across pages', function () {

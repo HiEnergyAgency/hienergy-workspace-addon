@@ -637,19 +637,19 @@ var HiEnergyCards = (function () {
 
     var config = {
       advertisers: {
-        label: exportLabel_('Export advertisers (up to 500)'),
+        label: exportLabel_('Export advertisers'),
         handler: 'handleExportCachedAdvertisersToSheet'
       },
       deals: {
-        label: exportLabel_('Export deals (up to 500)'),
+        label: exportLabel_('Export deals'),
         handler: 'handleExportCachedDealsToSheet'
       },
       transactions: {
-        label: exportLabel_('Export transactions (up to 500)'),
+        label: exportLabel_('Export transactions'),
         handler: 'handleExportCachedTransactionsToSheet'
       },
       advertiser_contacts: {
-        label: exportLabel_('Export contacts (up to 500)'),
+        label: exportLabel_('Export contacts'),
         handler: 'handleExportCachedAdvertiserContactsToSheet'
       },
       google_contacts: {
@@ -1617,8 +1617,8 @@ var HiEnergyCards = (function () {
 
     var subtitle =
       hostApp === 'SHEETS'
-        ? 'Add up to 500 rows as tabs in this spreadsheet'
-        : 'Generate a spreadsheet with up to 500 rows';
+        ? 'Add rows as tabs in this spreadsheet (100 per API page until done)'
+        : 'Generate a spreadsheet (100 per API page until done)';
     var card = CardService.newCardBuilder().setHeader(header_('Create Sheet', subtitle));
 
     var typeSelect = CardService.newSelectionInput()
@@ -1670,8 +1670,8 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       sectionText_(
-        'Fetches up to <b>500 rows</b> per export, paging through the API until done. ' +
-          'After exporting, use <b>Add more rows</b> to append the next batch to this sheet. ' +
+        'Fetches <b>100 rows per page</b> from the API until no results remain. ' +
+          'Use <b>Add more</b> if a large export was interrupted. ' +
           (hostApp === 'SHEETS'
             ? 'Results are added as tabs in this spreadsheet.'
             : 'A new spreadsheet is created in your Drive.')
@@ -1762,8 +1762,7 @@ var HiEnergyCards = (function () {
         'Exported ' +
         rowCount +
         ' rows (up to ' +
-        HiEnergyConfig.sheetRowLimit +
-        ' per batch). Use Add more rows to keep paging.';
+        ' rows). Use Add more if the export stopped early.';
     } else if (result.exhausted) {
       bottomLabel = 'All available rows exported (' + rowCount + ')';
     } else if (result.truncated && result.totalAvailable) {

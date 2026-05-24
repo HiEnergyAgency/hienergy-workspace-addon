@@ -254,8 +254,11 @@ var HiEnergySheets = (function () {
       maxRows = 0;
     }
     var unlimited = maxRows <= 0;
-    var pageSize = HiEnergyConfig.exportPageSize || 100;
-    var maxPages = options.maxPages || HiEnergyConfig.exportMaxPages || 50;
+    var pageSize = options.pageSize || HiEnergyConfig.exportPageSize || 100;
+    var maxPages = options.maxPages;
+    if (maxPages === undefined || maxPages === null) {
+      maxPages = unlimited ? 1000 : HiEnergyConfig.exportMaxPages || 50;
+    }
     var startPage = options.startPage || 1;
     var seen = options.seen || rebuildSeen_(options.seenKeys);
     var collected = [];
@@ -434,9 +437,14 @@ var HiEnergySheets = (function () {
       return { ok: false, error: 'UNSUPPORTED_EXPORT', message: 'Unsupported export type.' };
     }
 
+    var fetchAll = Object.prototype.hasOwnProperty.call(options, 'fetchAll') ? options.fetchAll : true;
     var paginateOptions = {
-      maxRows: options.fetchAll ? 0 : HiEnergyConfig.sheetRowLimit,
-      fetchAll: !!options.fetchAll,
+      maxRows: fetchAll
+        ? 0
+        : options.maxRows !== undefined
+          ? options.maxRows
+          : HiEnergyConfig.sheetRowLimit,
+      fetchAll: !!fetchAll,
       startPage: options.startPage || 1,
       seenKeys: options.seenKeys || null,
       seen: options.seen || null,
@@ -493,7 +501,7 @@ var HiEnergySheets = (function () {
   function exportMoreAll_(session, fetchAll) {
     var query = session.query || '';
     var types = session.types || {};
-    var typeList = ['advertisers', 'deals', 'transactions'];
+    var typeList = ['advertisers', 'deals', 'transactions', 'contacts'];
     var totalAppended = 0;
     var lastExport = null;
     var anyHasMore = false;
@@ -504,13 +512,18 @@ var HiEnergySheets = (function () {
         return;
       }
 
-      var part = exportPaginated_(type, { query: query }, {
+      var partParams = { query: query };
+      if (type === 'transactions') {
+        partParams.days = session.transactionDays || 30;
+        partParams.advertiserId = session.advertiserId || '';
+      }
+      var part = exportPaginated_(type, partParams, {
         append: true,
         startPage: state.nextPage || 1,
         seenKeys: state.seenKeys || null,
         skipSession: true,
         fetchAll: !!fetchAll,
-        maxPages: fetchAll ? HiEnergyConfig.exportMaxPages : null
+        maxPages: fetchAll ? null : 1
       });
 
       if (!part.ok) {
@@ -554,7 +567,7 @@ var HiEnergySheets = (function () {
     lastExport.exhausted = !anyHasMore;
     lastExport.appended = true;
     lastExport.rowCount = totalAppended;
-    lastExport.sheetCount = 3;
+    lastExport.sheetCount = typeList.length;
     return lastExport;
   }
 
@@ -591,7 +604,8 @@ var HiEnergySheets = (function () {
       startPage: session.nextPage,
       seenKeys: session.seenKeys,
       fetchAll: !!fetchAll,
-      maxPages: fetchAll ? HiEnergyConfig.exportMaxPages : null
+      maxRows: fetchAll ? 0 : HiEnergyConfig.exportPageSize || 100,
+      maxPages: fetchAll ? null : 1
     });
   }
 
@@ -710,7 +724,8 @@ var HiEnergySheets = (function () {
     });
     if (exported.ok) {
       HiEnergyMcpExport.cacheTransactionsSearch(normalized || 'Recent', { ok: true, body: { data: [] } }, {
-        days: dayRange
+        days: dayRange,
+        advertiserId: advertiser
       });
     }
     return exported;
@@ -726,7 +741,8 @@ var HiEnergySheets = (function () {
       };
     }
     var days = (cached.meta && cached.meta.days) || 30;
-    return exportTransactions_(cached.query, days);
+    var advertiserId = (cached.meta && cached.meta.advertiserId) || '';
+    return exportTransactions_(cached.query, days, advertiserId);
   }
 
   function exportAdvertiserContacts_(advertiser) {
@@ -799,11 +815,11 @@ var HiEnergySheets = (function () {
       return exportTransactions_(query);
     }
 
+    ensureAuthenticatedForExport_();
+
     if (scope === 'contacts' || scope === 'advertiser_contacts') {
       return exportAdvertiserContacts_(query);
     }
-
-    ensureAuthenticatedForExport_();
 
     if (scope === 'all') {
       var types = {};
@@ -811,8 +827,10 @@ var HiEnergySheets = (function () {
       var lastExport = null;
       var anyHasMore = false;
       var spreadsheetId = '';
-      ['advertisers', 'deals', 'transactions'].forEach(function (type, index) {
-        var part = exportPaginated_(type, { query: query }, {
+      var allTypes = ['advertisers', 'deals', 'transactions', 'contacts'];
+      allTypes.forEach(function (type, index) {
+        var partParams = { query: query };
+        var part = exportPaginated_(type, partParams, {
           skipSession: true,
           append: index > 0
         });
@@ -847,7 +865,7 @@ var HiEnergySheets = (function () {
       });
       lastExport.hasMore = anyHasMore;
       lastExport.exhausted = !anyHasMore;
-      lastExport.sheetCount = 3;
+      lastExport.sheetCount = allTypes.length;
       lastExport.rowCount = totalRows;
       return lastExport;
     }
@@ -855,7 +873,9 @@ var HiEnergySheets = (function () {
     var typesByScope = {
       advertisers: 'advertisers',
       deals: 'deals',
-      transactions: 'transactions'
+      transactions: 'transactions',
+      contacts: 'contacts',
+      advertiser_contacts: 'contacts'
     };
     var exportType = typesByScope[scope];
     if (exportType) {

@@ -53,15 +53,6 @@ var HiEnergyMcpExport = (function () {
         a.network_name || '',
         first_(a.program_status, a.status, a.advertiser_status),
         first_(a.commission_rate, a.average_commission_rate, a.default_commission_rate),
-        a.category || a.vertical || a.industry || '',
-        a.country || a.region || '',
-        a.currency || '',
-        a.epc || a.average_epc || '',
-        a.conversion_rate || '',
-        a.cookie_duration || a.cookie_window || '',
-        a.payout_type || a.commission_type || '',
-        a.minimum_payout || '',
-        a.tags ? (Array.isArray(a.tags) ? a.tags.join(', ') : String(a.tags)) : '',
         a.notes || a.description || '',
         a.contact_email || '',
         a.signup_url || a.join_url || a.application_url || '',
@@ -86,13 +77,10 @@ var HiEnergyMcpExport = (function () {
         first_(a.description, a.summary),
         first_(a.code, a.coupon_code, a.promo_code),
         first_(a.discount, a.value, a.amount, a.percent_off),
-        a.currency || '',
-        a.country || '',
         a.start_date || a.starts_at || '',
         a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
         a.network_name || '',
-        a.tags ? (Array.isArray(a.tags) ? a.tags.join(', ') : String(a.tags)) : '',
         a.url || a.landing_url || '',
         id
       ];
@@ -109,13 +97,10 @@ var HiEnergyMcpExport = (function () {
         a.publisher_name || a.publisher || '',
         first_(a.commission_amount, a.commission),
         first_(a.sale_amount, a.amount, a.order_value),
-        a.currency || '',
         a.network_name || '',
         a.transaction_date || a.event_date || a.created_at || '',
         a.status || '',
         first_(a.order_id, a.transaction_id),
-        a.product || a.sku || '',
-        a.country || '',
         a.advertiser_id || '',
         id
       ];
@@ -223,16 +208,16 @@ var HiEnergyMcpExport = (function () {
         contactFamilyName_(a),
         a.email || '',
         a.job_title || a.title || '',
-        a.department || '',
         a.advertiser_id || '',
         a.phone || '',
         linkedinProfile_(a),
-        a.country || a.location || '',
-        a.role || '',
-        a.notes || '',
         id
       ];
     });
+  }
+
+  function sheetRows_(rows) {
+    return rows || [];
   }
 
   var SHEET_SPECS_ = {
@@ -246,15 +231,6 @@ var HiEnergyMcpExport = (function () {
         'Network',
         'Status',
         'Commission',
-        'Category',
-        'Country',
-        'Currency',
-        'EPC',
-        'Conversion rate',
-        'Cookie window',
-        'Payout type',
-        'Minimum payout',
-        'Tags',
         'Notes',
         'Contact email',
         'Signup URL',
@@ -276,13 +252,10 @@ var HiEnergyMcpExport = (function () {
         'Description',
         'Code',
         'Discount',
-        'Currency',
-        'Country',
         'Starts',
         'Ends',
         'Status',
         'Network',
-        'Tags',
         'Landing URL',
         'ID'
       ],
@@ -296,13 +269,10 @@ var HiEnergyMcpExport = (function () {
         'Publisher',
         'Commission',
         'Sale amount',
-        'Currency',
         'Network',
         'Date',
         'Status',
         'Order ID',
-        'Product / SKU',
-        'Country',
         'Advertiser ID',
         'ID'
       ],
@@ -318,13 +288,9 @@ var HiEnergyMcpExport = (function () {
         'Family name',
         'Email',
         'Title',
-        'Department',
         'Advertiser ID',
         'Phone',
         'LinkedIn profile',
-        'Country',
-        'Role',
-        'Notes',
         'ID'
       ],
       rows: contactRows_
@@ -345,7 +311,7 @@ var HiEnergyMcpExport = (function () {
       tables.push({
         name: spec.title,
         headers: spec.headers,
-        rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
+        rows: spec.rows(sheetRows_(rows))
       });
     });
 
@@ -361,7 +327,7 @@ var HiEnergyMcpExport = (function () {
       {
         name: spec.title,
         headers: spec.headers,
-        rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
+        rows: spec.rows(sheetRows_(rows))
       }
     ];
   }
@@ -376,7 +342,7 @@ var HiEnergyMcpExport = (function () {
       {
         name: spec.title,
         headers: spec.headers,
-        rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
+        rows: spec.rows(sheetRows_(rows))
       }
     ];
   }
@@ -391,7 +357,7 @@ var HiEnergyMcpExport = (function () {
       {
         name: spec.title,
         headers: spec.headers,
-        rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
+        rows: spec.rows(sheetRows_(rows))
       }
     ];
   }
@@ -423,7 +389,7 @@ var HiEnergyMcpExport = (function () {
       {
         name: spec.title,
         headers: spec.headers,
-        rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
+        rows: spec.rows(sheetRows_(rows))
       }
     ];
     applyContactCompanyFallback_(tables, options && options.advertiserCompanyFallback);
@@ -602,12 +568,8 @@ var HiEnergyMcpExport = (function () {
         contact.email || '',
         contact.jobTitle || '',
         '',
-        '',
         contact.phone || '',
         contact.linkedin || '',
-        '',
-        '',
-        '',
         contact.resourceName || ''
       ];
     });
