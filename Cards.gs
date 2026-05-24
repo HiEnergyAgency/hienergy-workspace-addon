@@ -1946,14 +1946,16 @@ var HiEnergyCards = (function () {
     var summaryText = perTypeLine ||
       (rowCount + ' ' + rowWord + ' · ' + pluralize_(sheetCount, 'tab'));
 
-    var summary = CardService.newDecoratedText()
-      .setTopLabel(statusLabel)
-      .setText(summaryText)
-      .setWrapText(true);
-    if (bottomLabel) {
-      summary.setBottomLabel(bottomLabel);
+    if (!timedOut) {
+      var summary = CardService.newDecoratedText()
+        .setTopLabel(statusLabel)
+        .setText(summaryText)
+        .setWrapText(true);
+      if (bottomLabel) {
+        summary.setBottomLabel(bottomLabel);
+      }
+      card.addSection(CardService.newCardSection().addWidget(summary));
     }
-    card.addSection(CardService.newCardSection().addWidget(summary));
 
     var actions = CardService.newCardSection();
     var primaryRow = CardService.newButtonSet();

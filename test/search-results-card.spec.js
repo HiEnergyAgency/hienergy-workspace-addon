@@ -265,12 +265,12 @@ describe('sheetResultCard add-more visibility', function () {
       .filter(function (e) { return e.method === 'setTitle'; })
       .map(function (e) { return String(e.args[0] || ''); });
     expect(titles.some(function (t) { return t.indexOf('Paused at 320') !== -1; })).toBe(true);
-    expect(allText.some(function (t) { return t.indexOf('Advertisers 150') !== -1; })).toBe(true);
     expect(allText.some(function (t) { return t.indexOf('Add more') !== -1; })).toBe(true);
+    expect(allText.some(function (t) { return t.indexOf('Advertisers 150') !== -1; })).toBe(false);
 
     const bottoms = captured
       .filter(function (e) { return e.method === 'setBottomLabel'; })
       .map(function (e) { return String(e.args[0] || ''); });
-    expect(bottoms.some(function (t) { return t.indexOf('22-second') !== -1; })).toBe(true);
+    expect(bottoms.some(function (t) { return t.indexOf('22-second') !== -1; })).toBe(false);
   });
 });
