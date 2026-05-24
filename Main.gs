@@ -1,5 +1,17 @@
-function onHomepage() {
-  return ensureAuthenticatedHome_();
+function onHomepage(e) {
+  return ensureAuthenticatedHome_(e);
+}
+
+function hostAppFromEvent_(e) {
+  var common = e && e.commonEventObject;
+  if (common && common.hostApp) {
+    return String(common.hostApp);
+  }
+  return '';
+}
+
+function isGmailHost_(hostApp) {
+  return hostApp === 'GMAIL';
 }
 
 function onSettings() {
@@ -12,6 +24,7 @@ function handleSignIn() {
 
 function onSearchAction(e) {
   ensureAuthenticated_();
+  var hostApp = hostAppFromEvent_(e);
   var query = e && e.parameters ? String(e.parameters.query || '').trim() : '';
   if (query) {
     var result = HiEnergyApi.universalSearch(query);
@@ -20,7 +33,7 @@ function onSearchAction(e) {
     }
     return HiEnergyCards.searchResults(query, result);
   }
-  return HiEnergyCards.search();
+  return HiEnergyCards.search(null, { hostApp: hostApp });
 }
 
 function handleSaveApiKeySettings(e) {
@@ -64,6 +77,13 @@ function handleSearch(e) {
   }
 
   if (scope === 'messages') {
+    var hostApp = hostAppFromEvent_(e);
+    if (hostApp && !isGmailHost_(hostApp)) {
+      return HiEnergyCards.error(
+        'Gmail only',
+        'Message search runs in Gmail. In Sheets, Docs, Drive, or Calendar use advertiser, deal, or transaction search.'
+      );
+    }
     return HiEnergyCards.messages('Search: ' + query, HiEnergyGmail.searchMessages(query));
   }
 
@@ -302,7 +322,9 @@ function cleanUniversalSearchArgs_(query, params) {
 function onGmailMessageOpen(e) {
   var context = HiEnergyGmail.getContextFromEvent(e);
   if (!context || !context.domain) {
-    return HiEnergyApi.hasAuth() ? HiEnergyCards.search() : HiEnergyCards.connect();
+    return HiEnergyApi.hasAuth()
+      ? HiEnergyCards.search(null, { hostApp: 'GMAIL' })
+      : HiEnergyCards.connect();
   }
 
   var contactResult = context.senderEmail
@@ -314,14 +336,14 @@ function onGmailMessageOpen(e) {
   return HiEnergyCards.gmailContext(context, contactResult, messagesResult);
 }
 
-function ensureAuthenticatedHome_() {
+function ensureAuthenticatedHome_(e) {
   if (!HiEnergyAuth.isConfigured() && !HiEnergyApi.hasApiKey()) {
     return HiEnergyCards.connect();
   }
   if (!HiEnergyApi.hasAuth()) {
     return HiEnergyCards.connect();
   }
-  return HiEnergyCards.search();
+  return HiEnergyCards.search(null, { hostApp: hostAppFromEvent_(e) });
 }
 
 function ensureAuthenticated_() {
@@ -437,8 +459,15 @@ function handleExportMcpResultToSheet() {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedMcpTool());
 }
 
-function onDraftEmailAction() {
+function onDraftEmailAction(e) {
   ensureAuthenticated_();
+  var hostApp = hostAppFromEvent_(e);
+  if (hostApp && !isGmailHost_(hostApp)) {
+    return HiEnergyCards.error(
+      'Gmail drafts',
+      'Draft Email creates messages in Gmail. Open the add-on from Gmail, or use Create Sheet in this app.'
+    );
+  }
   return HiEnergyCards.draftEmail();
 }
 

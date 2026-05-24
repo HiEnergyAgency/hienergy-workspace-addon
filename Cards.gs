@@ -174,10 +174,29 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
-  function searchCard_(prefill) {
+  function searchCard_(prefill, options) {
+    options = options || {};
+    var hostApp = options.hostApp || '';
+    var showGmailScopes = !hostApp || hostApp === 'GMAIL';
+
     var card = CardService.newCardBuilder().setHeader(
       header_('Search', HiEnergyConfig.brandName)
     );
+
+    var scopeInput = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle('Scope')
+      .setFieldName('scope')
+      .addItem('Everything', 'all', !prefill)
+      .addItem('Advertisers', 'advertisers', false)
+      .addItem('Deals', 'deals', false)
+      .addItem('Transactions', 'transactions', false);
+
+    if (showGmailScopes) {
+      scopeInput
+        .addItem('Contacts', 'contacts', false)
+        .addItem('Messages', 'messages', false);
+    }
 
     var section = CardService.newCardSection()
       .addWidget(
@@ -186,18 +205,7 @@ var HiEnergyCards = (function () {
           .setTitle('Search query')
           .setValue(prefill || '')
       )
-      .addWidget(
-        CardService.newSelectionInput()
-          .setType(CardService.SelectionInputType.DROPDOWN)
-          .setTitle('Scope')
-          .setFieldName('scope')
-          .addItem('Everything', 'all', !prefill)
-          .addItem('Advertisers', 'advertisers', false)
-          .addItem('Deals', 'deals', false)
-          .addItem('Transactions', 'transactions', false)
-          .addItem('Contacts', 'contacts', false)
-          .addItem('Messages', 'messages', false)
-      )
+      .addWidget(scopeInput)
       .addWidget(
         CardService.newTextButton()
           .setText('Search')
@@ -207,6 +215,15 @@ var HiEnergyCards = (function () {
       );
 
     card.addSection(section);
+
+    if (hostApp === 'SHEETS') {
+      card.addSection(
+        sectionText_(
+          'Use the <b>Create Sheet</b> universal action to export MCP search results into this spreadsheet.'
+        )
+      );
+    }
+
     return card.build();
   }
 
@@ -243,26 +260,47 @@ var HiEnergyCards = (function () {
     return errorCard_('API error', result.message || result.error || 'Unknown error');
   }
 
+  function normalizeResultRows_(rows) {
+    if (!Array.isArray(rows)) {
+      return [];
+    }
+    return rows.filter(function (row) {
+      return row && typeof row === 'object';
+    });
+  }
+
+  function attrsForRecord_(record) {
+    if (!record || typeof record !== 'object') {
+      return {};
+    }
+    return record.attributes || record;
+  }
+
+  function recordId_(record, attrs) {
+    return String((record && record.id) || (attrs && attrs.id) || '').trim();
+  }
+
   function labelForRecord_(type, record) {
     if (!record) {
       return 'Unknown';
     }
+    var attrs = attrsForRecord_(record);
+    var id = recordId_(record, attrs);
     if (type === 'advertisers') {
-      return record.attributes.display_name || record.attributes.name || record.id;
+      return attrs.display_name || attrs.name || id || 'Advertiser';
     }
     if (type === 'deals') {
-      return record.attributes.title || record.attributes.name || record.id;
+      return attrs.title || attrs.name || id || 'Deal';
     }
     if (type === 'transactions') {
-      var attrs = record.attributes || record;
       return (attrs.advertiser_name || attrs.advertiser_id || 'Transaction') +
         ' · ' + (attrs.commission_amount || attrs.commission || '');
     }
-    return record.attributes && (record.attributes.name || record.attributes.title) || record.id;
+    return attrs.name || attrs.title || attrs.display_name || id || 'Result';
   }
 
   function subtitleForRecord_(type, record) {
-    var attrs = record.attributes || record;
+    var attrs = attrsForRecord_(record);
     if (type === 'advertisers') {
       return [attrs.domain, attrs.network_name, attrs.program_status].filter(Boolean).join(' · ');
     }
@@ -356,7 +394,9 @@ var HiEnergyCards = (function () {
         type.charAt(0).toUpperCase() + type.slice(1) + ' (' + (bucket.total || rows.length) + ')'
       );
 
-      rows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+      normalizeResultRows_(rows)
+        .slice(0, HiEnergyConfig.perTypeLimit)
+        .forEach(function (row) {
         var label = labelForRecord_(type, row);
         var subtitle = subtitleForRecord_(type, row);
         var decorator = CardService.newDecoratedText()
@@ -366,7 +406,8 @@ var HiEnergyCards = (function () {
           .setWrapText(true);
 
         if (type === 'advertisers') {
-          var slug = row.attributes && (row.attributes.slug || row.id);
+          var attrs = attrsForRecord_(row);
+          var slug = attrs.slug || recordId_(row, attrs);
           section.addWidget(decorator.setButton(
             CardService.newTextButton()
               .setText('Open')
@@ -516,11 +557,11 @@ var HiEnergyCards = (function () {
       card.addSection(sectionText_('Nothing to show.'));
     } else {
       var section = CardService.newCardSection();
-      rows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
-        var attrs = row.attributes || row;
+      normalizeResultRows_(rows).slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+        var attrs = attrsForRecord_(row);
         section.addWidget(
           CardService.newDecoratedText()
-            .setText(attrs.title || attrs.name || row.id)
+            .setText(attrs.title || attrs.name || recordId_(row, attrs))
             .setBottomLabel([attrs.advertiser_name, attrs.country, attrs.status].filter(Boolean).join(' · '))
             .setWrapText(true)
         );
@@ -557,8 +598,8 @@ var HiEnergyCards = (function () {
       card.addSection(sectionText_('Nothing to show.'));
     } else {
       var section = CardService.newCardSection();
-      rows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
-        var attrs = row.attributes || row;
+      normalizeResultRows_(rows).slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+        var attrs = attrsForRecord_(row);
         section.addWidget(
           CardService.newDecoratedText()
             .setText((attrs.advertiser_name || 'Transaction') + ' · ' + (attrs.commission_amount || attrs.commission || ''))
@@ -981,8 +1022,8 @@ var HiEnergyCards = (function () {
         contactsResultCard.addSection(sectionText_('No contacts returned.'));
       } else {
         var contactsSection = CardService.newCardSection();
-        advertiserContactRows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
-          var attrs = row.attributes || row;
+        normalizeResultRows_(advertiserContactRows).slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+          var attrs = attrsForRecord_(row);
           contactsSection.addWidget(
             CardService.newDecoratedText()
               .setText([attrs.given_name, attrs.family_name].filter(Boolean).join(' ') || attrs.email || row.id)
