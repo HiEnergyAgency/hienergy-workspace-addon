@@ -62,103 +62,153 @@ var HiEnergyCards = (function () {
 
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
-      header_('Settings', HiEnergyConfig.brandName + ' sign-in and API options')
+      header_('Settings', 'Sign-in, API keys, and backend')
     );
 
+    var mode = HiEnergyApi.authMode ? HiEnergyApi.authMode() : 'none';
+    var hasApiKey = HiEnergyApi.hasApiKey();
+    var maskedKey = HiEnergyApi.maskedApiKey ? HiEnergyApi.maskedApiKey() : '';
+
+    var statusLabel = 'Not connected';
+    var statusDetail = 'Choose Auth0 or an API key below.';
+    if (mode === 'auth0') {
+      statusLabel = 'Signed in with Auth0';
+      statusDetail = hasApiKey ? 'API key also saved (used as fallback)' : 'Active method';
+    } else if (mode === 'api_key') {
+      statusLabel = 'Using API key';
+      statusDetail = maskedKey || 'API key saved';
+    }
+
+    var statusSection = CardService.newCardSection().setHeader('Status').addWidget(
+      CardService.newDecoratedText()
+        .setTopLabel(HiEnergyConfig.brandName)
+        .setText(statusLabel)
+        .setBottomLabel(statusDetail)
+        .setWrapText(true)
+    );
+    card.addSection(statusSection);
+
+    var auth0Section = CardService.newCardSection().setHeader('Option 1 · Auth0 sign-in');
     if (!HiEnergyAuth.isConfigured()) {
-      card.addSection(
-        sectionText_(
-          'This deployment is missing Auth0 script properties. An admin must set <b>AUTH0_DOMAIN</b>, <b>AUTH0_CLIENT_ID</b>, <b>AUTH0_CLIENT_SECRET</b>, and <b>AUTH0_AUDIENCE</b> in Apps Script project settings.'
+      auth0Section.addWidget(
+        CardService.newTextParagraph().setText(
+          'Auth0 isn\u2019t configured for this deployment. An admin must set ' +
+            '<b>AUTH0_DOMAIN</b>, <b>AUTH0_CLIENT_ID</b>, <b>AUTH0_CLIENT_SECRET</b>, and ' +
+            '<b>AUTH0_AUDIENCE</b> in Apps Script Script Properties. Use Option 2 instead.'
         )
       );
     } else if (HiEnergyAuth.hasAccess()) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Signed in')
-          .addWidget(CardService.newDecoratedText().setText('Connected with Auth0').setTopLabel('Status'))
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Sign out')
-              .setOnClickAction(
-                CardService.newAction().setFunctionName('handleDisconnectSettings')
-              )
-          )
-      );
-    } else {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Sign in')
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Sign in with ' + HiEnergyConfig.brandName)
-              .setOnClickAction(
-                CardService.newAction().setFunctionName('handleSignIn')
-              )
-          )
-      );
-    }
-
-    var advanced = CardService.newCardSection()
-      .setHeader('Advanced: API key fallback')
-      .addWidget(
-        CardService.newTextInput()
-          .setFieldName('apiKey')
-          .setTitle('API key (optional)')
-          .setHint('Uses X-Api-Key when Auth0 is unavailable')
-      )
-      .addWidget(
-        CardService.newTextInput()
-          .setFieldName('apiBase')
-          .setTitle('API base URL (optional)')
-          .setValue(HiEnergyApi.getApiBase())
-          .setHint('Default: ' + HiEnergyConfig.defaultApiBase)
-      )
-      .addWidget(
-        CardService.newTextButton()
-          .setText('Save API key')
-          .setOnClickAction(
-            CardService.newAction().setFunctionName('handleSaveApiKeySettings')
-          )
-      );
-
-    if (HiEnergyApi.hasApiKey()) {
-      advanced.addWidget(
-        CardService.newTextButton()
-          .setText('Remove API key')
-          .setOnClickAction(
-            CardService.newAction().setFunctionName('handleRemoveApiKeySettings')
-          )
-      );
-    }
-
-    card.addSection(advanced);
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('MCP server')
+      auth0Section
         .addWidget(
           CardService.newDecoratedText()
-            .setTopLabel('Backend')
-            .setText(HiEnergyConfig.brandName + ' MCP')
-            .setBottomLabel(HiEnergyApi.getMcpUrl())
+            .setTopLabel('OAuth')
+            .setText('Connected')
+            .setBottomLabel('Per-user Auth0 token stored in this Workspace user profile')
             .setWrapText(true)
         )
         .addWidget(
           CardService.newTextButton()
-            .setText('Browse MCP tools')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('onMcpTools')
-            )
-        )
+            .setText('Sign out of Auth0')
+            .setOnClickAction(cardAction_('handleSignOutAuth0'))
+        );
+    } else {
+      auth0Section
         .addWidget(
-          CardService.newTextButton()
-            .setText('MCP documentation')
-            .setOpenLink(
-              CardService.newOpenLink()
-                .setUrl(HiEnergyConfig.authDocsUrl)
-                .setOpenAs(CardService.OpenAs.FULL_SIZE)
-            )
+          CardService.newTextParagraph().setText(
+            'Sign in with your ' + HiEnergyConfig.brandName + ' account. The add-on stores your Auth0 token per-user.'
+          )
+        )
+        .addWidget(filledButton_('Sign in with ' + HiEnergyConfig.brandName, cardAction_('handleSignIn')));
+    }
+    card.addSection(auth0Section);
+
+    var apiKeySection = CardService.newCardSection().setHeader('Option 2 · API key');
+    apiKeySection.addWidget(
+      CardService.newDecoratedText()
+        .setTopLabel('Current key')
+        .setText(hasApiKey ? maskedKey : 'No key saved')
+        .setBottomLabel(
+          hasApiKey
+            ? 'Sent as X-Api-Key header. Enter a new key below to replace it.'
+            : 'Per-user. Paste your Hi Energy AI API key to enable read-only access.'
+        )
+        .setWrapText(true)
+    );
+    apiKeySection.addWidget(
+      CardService.newTextInput()
+        .setFieldName('apiKey')
+        .setTitle(hasApiKey ? 'Replace API key' : 'API key')
+        .setHint(hasApiKey ? 'Leave empty to keep current key' : 'Paste API key (kept per-user)')
+    );
+    apiKeySection.addWidget(
+      filledButton_(hasApiKey ? 'Update API key' : 'Save API key', cardAction_('handleSaveApiKeySettings'))
+    );
+    if (hasApiKey) {
+      apiKeySection.addWidget(
+        CardService.newTextButton()
+          .setText('Remove API key')
+          .setOnClickAction(cardAction_('handleRemoveApiKeySettings'))
+      );
+    }
+    card.addSection(apiKeySection);
+
+    var backendSection = CardService.newCardSection().setHeader('Backend overrides');
+    backendSection.addWidget(
+      CardService.newTextInput()
+        .setFieldName('apiBase')
+        .setTitle('REST API base URL')
+        .setValue(HiEnergyApi.getApiBase())
+        .setHint('Default: ' + HiEnergyConfig.defaultApiBase)
+    );
+    backendSection.addWidget(
+      CardService.newTextInput()
+        .setFieldName('mcpUrl')
+        .setTitle('MCP server URL')
+        .setValue(HiEnergyApi.getMcpUrl())
+        .setHint('Default: ' + HiEnergyConfig.defaultMcpUrl)
+    );
+    backendSection.addWidget(
+      CardService.newTextButton()
+        .setText('Save backend URLs')
+        .setOnClickAction(cardAction_('handleSaveBackendUrls'))
+    );
+    backendSection.addWidget(
+      CardService.newTextButton()
+        .setText('Reset to defaults')
+        .setOnClickAction(cardAction_('handleResetBackendUrls'))
+    );
+    backendSection.addWidget(
+      CardService.newTextButton()
+        .setText('Browse MCP tools')
+        .setOnClickAction(cardAction_('onMcpTools'))
+    );
+    backendSection.addWidget(
+      CardService.newTextButton()
+        .setText('MCP documentation')
+        .setOpenLink(
+          CardService.newOpenLink()
+            .setUrl(HiEnergyConfig.authDocsUrl)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
         )
     );
+    card.addSection(backendSection);
+
+    if (mode !== 'none') {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Reset')
+          .addWidget(
+            CardService.newTextParagraph().setText(
+              'Clear both Auth0 and the API key, then return to the welcome screen.'
+            )
+          )
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Disconnect everything')
+              .setOnClickAction(cardAction_('handleDisconnectSettings'))
+          )
+      );
+    }
     card.addSection(
       CardService.newCardSection()
         .setHeader('Legal')
@@ -191,29 +241,55 @@ var HiEnergyCards = (function () {
   }
 
   function connectCard_() {
-    var intro = HiEnergyAuth.isConfigured()
-      ? 'Sign in with your ' + HiEnergyConfig.brandName + ' account to search advertisers, deals, and transactions without leaving Gmail, Drive, Docs, or Sheets.'
-      : 'Auth0 is not configured for this add-on deployment. Ask an admin to set Auth0 script properties, or use an API key in Settings.';
-
     var card = CardService.newCardBuilder()
-      .setHeader(header_(HiEnergyConfig.brandName, HiEnergyConfig.brandTagline))
-      .addSection(sectionText_(intro));
+      .setHeader(header_(HiEnergyConfig.brandName, HiEnergyConfig.brandTagline));
 
-    var actions = CardService.newCardSection();
+    card.addSection(
+      sectionText_(
+        'Search Hi Energy AI advertisers, deals, and transactions inside Gmail, Sheets, Docs, Drive, Slides, and Calendar. Pick how you want to connect:'
+      )
+    );
+
+    var oauthSection = CardService.newCardSection().setHeader('Option 1 · OAuth (recommended)');
     if (HiEnergyAuth.isConfigured()) {
-      actions.addWidget(
-        filledButton_(
-          'Sign in with ' + HiEnergyConfig.brandName,
-          cardAction_('handleSignIn')
+      oauthSection
+        .addWidget(
+          CardService.newTextParagraph().setText(
+            'Sign in with your ' + HiEnergyConfig.brandName + ' account. Tokens are stored per Google user.'
+          )
+        )
+        .addWidget(
+          filledButton_('Sign in with ' + HiEnergyConfig.brandName, cardAction_('handleSignIn'))
+        );
+    } else {
+      oauthSection.addWidget(
+        CardService.newTextParagraph().setText(
+          'Auth0 isn\u2019t configured for this deployment. Use an API key below, or ask your admin to set up Auth0.'
         )
       );
     }
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText('Settings')
-        .setOnClickAction(cardAction_('onSettings'))
+    card.addSection(oauthSection);
+
+    var apiKeySection = CardService.newCardSection().setHeader('Option 2 · API key');
+    apiKeySection
+      .addWidget(
+        CardService.newTextInput()
+          .setFieldName('apiKey')
+          .setTitle('API key')
+          .setHint('Paste your Hi Energy AI API key (stored per-user)')
+      )
+      .addWidget(
+        filledButton_('Save API key & continue', cardAction_('handleSaveApiKeySettings'))
+      );
+    card.addSection(apiKeySection);
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Advanced settings')
+          .setOnClickAction(cardAction_('onSettings'))
+      )
     );
-    card.addSection(actions);
 
     return card.build();
   }

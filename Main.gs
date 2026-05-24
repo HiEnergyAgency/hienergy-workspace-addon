@@ -56,20 +56,46 @@ function onSearchAction(e) {
 function handleSaveApiKeySettings(e) {
   var form = (e && e.formInput) || {};
   var apiKey = String(form.apiKey || '').trim();
-  var apiBase = String(form.apiBase || '').trim();
 
-  if (apiKey) {
-    HiEnergyApi.saveCredentials(apiKey, apiBase || HiEnergyConfig.defaultApiBase);
-  } else if (apiBase) {
-    var props = PropertiesService.getUserProperties();
-    props.setProperty(HiEnergyConfig.propApiBase, apiBase.replace(/\/$/, ''));
+  if (!apiKey) {
+    return HiEnergyCards.error(
+      'No API key entered',
+      'Paste your Hi Energy AI API key in the field, then click Save again.'
+    );
+  }
+
+  HiEnergyApi.saveCredentials(apiKey);
+  return HiEnergyApi.hasAuth() ? HiEnergyCards.search() : HiEnergyCards.settings();
+}
+
+function handleRemoveApiKeySettings() {
+  HiEnergyApi.clearApiKey();
+  return HiEnergyCards.settings();
+}
+
+function handleSignOutAuth0() {
+  HiEnergyAuth.reset();
+  return HiEnergyCards.settings();
+}
+
+function handleSaveBackendUrls(e) {
+  var form = (e && e.formInput) || {};
+  var apiBase = String(form.apiBase || '').trim();
+  var mcpUrl = String(form.mcpUrl || '').trim();
+
+  if (apiBase) {
+    HiEnergyApi.saveApiBase(apiBase);
+  }
+  if (mcpUrl) {
+    HiEnergyApi.saveMcpUrl(mcpUrl);
   }
 
   return HiEnergyCards.settings();
 }
 
-function handleRemoveApiKeySettings() {
-  HiEnergyApi.clearCredentials();
+function handleResetBackendUrls() {
+  HiEnergyApi.saveApiBase('');
+  HiEnergyApi.saveMcpUrl('');
   return HiEnergyCards.settings();
 }
 

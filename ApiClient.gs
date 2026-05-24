@@ -21,10 +21,40 @@ var HiEnergyApi = (function () {
 
   function saveCredentials_(apiKey, apiBase) {
     var props = userProps_();
-    props.setProperty(HiEnergyConfig.propApiKey, String(apiKey || '').trim());
+    var trimmedKey = String(apiKey || '').trim();
+    if (trimmedKey) {
+      props.setProperty(HiEnergyConfig.propApiKey, trimmedKey);
+    }
     if (apiBase) {
       props.setProperty(HiEnergyConfig.propApiBase, String(apiBase).replace(/\/$/, ''));
     }
+    HiEnergyMcp.resetSession();
+  }
+
+  function saveApiBase_(apiBase) {
+    var props = userProps_();
+    var trimmed = String(apiBase || '').trim();
+    if (!trimmed) {
+      props.deleteProperty(HiEnergyConfig.propApiBase);
+    } else {
+      props.setProperty(HiEnergyConfig.propApiBase, trimmed.replace(/\/$/, ''));
+    }
+    HiEnergyMcp.resetSession();
+  }
+
+  function saveMcpUrl_(mcpUrl) {
+    var props = userProps_();
+    var trimmed = String(mcpUrl || '').trim();
+    if (!trimmed) {
+      props.deleteProperty(HiEnergyConfig.propMcpUrl);
+    } else {
+      props.setProperty(HiEnergyConfig.propMcpUrl, trimmed.replace(/\/$/, ''));
+    }
+    HiEnergyMcp.resetSession();
+  }
+
+  function clearApiKey_() {
+    userProps_().deleteProperty(HiEnergyConfig.propApiKey);
     HiEnergyMcp.resetSession();
   }
 
@@ -33,6 +63,27 @@ var HiEnergyApi = (function () {
     props.deleteProperty(HiEnergyConfig.propApiKey);
     props.deleteProperty(HiEnergyConfig.propApiBase);
     HiEnergyMcp.resetSession();
+  }
+
+  function maskedApiKey_() {
+    var key = apiKey_();
+    if (!key) {
+      return '';
+    }
+    if (key.length <= 6) {
+      return '••••' + key.slice(-2);
+    }
+    return '••••' + key.slice(-4);
+  }
+
+  function authMode_() {
+    if (HiEnergyAuth && HiEnergyAuth.hasAccess && HiEnergyAuth.hasAccess()) {
+      return 'auth0';
+    }
+    if (hasApiKey_()) {
+      return 'api_key';
+    }
+    return 'none';
   }
 
   function request_(path, options) {
@@ -362,7 +413,12 @@ var HiEnergyApi = (function () {
   return {
     hasAuth: hasAuth_,
     hasApiKey: hasApiKey_,
+    maskedApiKey: maskedApiKey_,
+    authMode: authMode_,
     saveCredentials: saveCredentials_,
+    saveApiBase: saveApiBase_,
+    saveMcpUrl: saveMcpUrl_,
+    clearApiKey: clearApiKey_,
     clearCredentials: clearCredentials_,
     getApiBase: apiBase_,
     getMcpUrl: getMcpUrl_,
