@@ -1,8 +1,8 @@
 const { createGasContext, loadGasFiles } = require('./helpers/gas-runtime');
 
-function createCardServiceMock() {
-  function chain() {
-    var obj = {};
+function createCardServiceMock(captured) {
+  function chain(label) {
+    var obj = { __kind: label, __calls: [] };
     [
       'setHeader',
       'setTitle',
@@ -20,6 +20,8 @@ function createCardServiceMock() {
       'setOnClickAction',
       'setFunctionName',
       'setParameters',
+      'setTextButtonStyle',
+      'setBackgroundColor',
       'setTopLabel',
       'setText',
       'setBottomLabel',
@@ -31,6 +33,17 @@ function createCardServiceMock() {
       'build'
     ].forEach(function (method) {
       obj[method] = function () {
+        var args = Array.prototype.slice.call(arguments);
+        obj.__calls.push({ method: method, args: args });
+        if (captured) {
+          captured.push({ kind: label, method: method, args: args });
+        }
+        if (method === 'setText' && args[0]) {
+          obj.__text = args[0];
+        }
+        if (method === 'setFunctionName' && args[0]) {
+          obj.__functionName = args[0];
+        }
         return obj;
       };
     });
@@ -38,26 +51,49 @@ function createCardServiceMock() {
   }
 
   return {
-    newCardBuilder: chain,
-    newCardSection: chain,
-    newCardHeader: chain,
-    newTextParagraph: chain,
-    newTextInput: chain,
-    newSelectionInput: chain,
-    newTextButton: chain,
-    newDecoratedText: chain,
-    newAction: chain,
-    newOpenLink: chain,
+    newCardBuilder: function () {
+      return chain('cardBuilder');
+    },
+    newCardSection: function () {
+      return chain('cardSection');
+    },
+    newCardHeader: function () {
+      return chain('cardHeader');
+    },
+    newTextParagraph: function () {
+      return chain('textParagraph');
+    },
+    newTextInput: function () {
+      return chain('textInput');
+    },
+    newSelectionInput: function () {
+      return chain('selectionInput');
+    },
+    newTextButton: function () {
+      return chain('textButton');
+    },
+    newDecoratedText: function () {
+      return chain('decoratedText');
+    },
+    newAction: function () {
+      return chain('action');
+    },
+    newOpenLink: function () {
+      return chain('openLink');
+    },
     SelectionInputType: { DROPDOWN: 'DROPDOWN' },
     ImageStyle: { CIRCLE: 'CIRCLE' },
-    OpenAs: { FULL_SIZE: 'FULL_SIZE' }
+    OpenAs: { FULL_SIZE: 'FULL_SIZE' },
+    TextButtonStyle: { FILLED: 'FILLED', TEXT: 'TEXT' }
   };
 }
 
 describe('HiEnergyCards search results', function () {
   let ctx;
+  let captured;
 
   beforeEach(function () {
+    captured = [];
     const runtime = createGasContext({
       HiEnergyAuth: {
         isConfigured: function () {
@@ -68,10 +104,20 @@ describe('HiEnergyCards search results', function () {
         }
       }
     });
-    runtime.context.CardService = createCardServiceMock();
+    runtime.context.CardService = createCardServiceMock(captured);
     loadGasFiles(runtime.context, ['Config.gs', 'Cards.gs']);
     ctx = runtime.context;
   });
+
+  function actionFunctionNames() {
+    return captured
+      .filter(function (entry) {
+        return entry.method === 'setFunctionName';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+  }
 
   it('renders advertisers with flat MCP rows (no attributes wrapper)', function () {
     expect(function () {
@@ -119,5 +165,39 @@ describe('HiEnergyCards search results', function () {
         }
       });
     }).not.toThrow();
+  });
+
+  it('exposes an export-to-sheet action when results exist', function () {
+    ctx.HiEnergyCards.searchResults('nike', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{ id: '1', attributes: { display_name: 'Nike' } }],
+            total: 1
+          }
+        }
+      }
+    });
+    expect(actionFunctionNames()).toContain('handleExportCachedSearchToSheet');
+  });
+
+  it('uses advertiser export handler when scope is advertisers', function () {
+    ctx.HiEnergyCards.searchResults(
+      'nike',
+      {
+        ok: true,
+        body: {
+          results: {
+            advertisers: {
+              data: [{ id: '1', attributes: { display_name: 'Nike' } }],
+              total: 1
+            }
+          }
+        }
+      },
+      { exportType: 'advertisers' }
+    );
+    expect(actionFunctionNames()).toContain('handleExportCachedAdvertisersToSheet');
   });
 });
