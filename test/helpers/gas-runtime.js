@@ -106,6 +106,20 @@ function createGasContext(overrides) {
       newCardBuilder: function () {
         return {};
       },
+      newActionResponseBuilder: function () {
+        const builder = {
+          setNavigation: function () { return builder; },
+          setNotification: function () { return builder; },
+          build: function () { return {}; }
+        };
+        return builder;
+      },
+      newNavigation: function () {
+        return { updateCard: function () { return {}; } };
+      },
+      newNotification: function () {
+        return { setText: function () { return this; } };
+      },
       newAuthorizationException: function () {
         return {
           setAuthorizationUrl: function () {

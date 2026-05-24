@@ -1770,6 +1770,44 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
+  function sheetResultNotificationText_(result) {
+    if (!result || !result.ok) {
+      if (result && result.error === 'NO_DATA') {
+        return 'Nothing new to export.';
+      }
+      if (result && result.error === 'EXHAUSTED') {
+        return 'Everything has already been exported.';
+      }
+      return '';
+    }
+    var rowCount = result.rowCount || 0;
+    if (result.timedOut) {
+      return 'Paused after ' + rowCount + ' rows — click Add more.';
+    }
+    if (result.exhausted) {
+      return rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows') + ' exported.';
+    }
+    if (result.appended) {
+      return '+' + (result.rowsThisBatch || rowCount) + ' rows added.';
+    }
+    return 'Exported ' + rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows') + '.';
+  }
+
+  function sheetResultActionResponse_(result, options) {
+    var card = sheetResultCard_(result, options);
+    if (typeof CardService.newActionResponseBuilder !== 'function') {
+      return card;
+    }
+    var builder = CardService.newActionResponseBuilder().setNavigation(
+      CardService.newNavigation().updateCard(card)
+    );
+    var note = sheetResultNotificationText_(result);
+    if (note) {
+      builder.setNotification(CardService.newNotification().setText(note));
+    }
+    return builder.build();
+  }
+
   function canAddMoreRows_(result) {
     if (!result || !result.ok || result.exhausted) {
       return false;
@@ -1801,38 +1839,68 @@ var HiEnergyCards = (function () {
       return apiErrorCard_(result);
     }
 
-    var title = result.usedActiveSpreadsheet ? 'Exported' : 'Sheet created';
-    var subtitle = result.usedActiveSpreadsheet
-      ? 'Added to this spreadsheet'
-      : HiEnergyConfig.brandName;
-    var card = CardService.newCardBuilder().setHeader(header_(title, subtitle));
-
+    var timedOut = !!(result.timedOut || (result.meta && result.meta.timedOut));
     var rowCount = result.rowCount || 0;
     var sheetCount = result.sheetCount || 1;
-    var bottomLabel = result.usedActiveSpreadsheet ? 'In this spreadsheet' : 'New spreadsheet';
-    if (result.appended) {
-      bottomLabel = 'Added ' + (result.rowsThisBatch || rowCount) + ' more rows to this sheet';
-    } else if (result.hasMore) {
-      bottomLabel =
-        'Exported ' +
-        rowCount +
-        ' rows (up to ' +
-        ' rows). Use Add more if the export stopped early.';
+
+    var title;
+    if (timedOut) {
+      title = 'Paused at ' + rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows');
     } else if (result.exhausted) {
-      bottomLabel = 'All available rows exported (' + rowCount + ')';
-    } else if (result.truncated && result.totalAvailable) {
-      bottomLabel =
-        'First ' + rowCount + ' of ' + result.totalAvailable + ' total — use Add more rows';
-    } else if (typeof result.totalAvailable === 'number' && result.totalAvailable > 0) {
-      bottomLabel = 'Complete set (' + result.totalAvailable + ' rows)';
+      title = rowCount ? 'All ' + rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows') + ' exported' : 'Nothing new to export';
+    } else if (result.appended) {
+      title = '+' + (result.rowsThisBatch || rowCount) + ' more rows added';
+    } else {
+      title = result.usedActiveSpreadsheet ? 'Exported ' + rowCount + ' rows' : 'Sheet created · ' + rowCount + ' rows';
     }
+
+    var subtitle = result.usedActiveSpreadsheet
+      ? 'In this spreadsheet · ' + pluralize_(sheetCount, 'tab')
+      : HiEnergyConfig.brandName + ' · ' + pluralize_(sheetCount, 'tab');
+    var card = CardService.newCardBuilder().setHeader(header_(title, subtitle));
+
+    var bottomLabel = '';
+    if (timedOut) {
+      bottomLabel = 'Stopped at the 22-second limit — click Add more to keep going.';
+    } else if (result.appended && result.hasMore) {
+      bottomLabel = 'More rows are still available. Click Add more to continue.';
+    } else if (result.appended) {
+      bottomLabel = 'All available rows have been added to this sheet.';
+    } else if (result.hasMore) {
+      bottomLabel = 'More rows available. Click Add more to continue.';
+    } else if (result.exhausted) {
+      bottomLabel = 'No more rows to fetch.';
+    } else if (result.truncated && result.totalAvailable) {
+      bottomLabel = 'First ' + rowCount + ' of ' + result.totalAvailable + ' total — click Add more.';
+    } else if (typeof result.totalAvailable === 'number' && result.totalAvailable > 0) {
+      bottomLabel = 'Complete (' + result.totalAvailable + ' rows).';
+    } else {
+      bottomLabel = 'Done.';
+    }
+
+    var summaryText = String(rowCount) + ' ' + (rowCount === 1 ? 'row' : 'rows') +
+      ' · ' + pluralize_(sheetCount, 'tab');
+    if (result.byType) {
+      var perType = Object.keys(result.byType)
+        .map(function (type) {
+          var info = result.byType[type] || {};
+          var label = type.charAt(0).toUpperCase() + type.slice(1);
+          return label + ' ' + (info.rowCount || 0);
+        })
+        .join(' · ');
+      if (perType) {
+        summaryText = perType;
+      }
+    }
+
     card.addSection(
       CardService.newCardSection()
         .addWidget(
           CardService.newDecoratedText()
-            .setTopLabel(rowCount === 1 ? 'Row exported' : 'Rows exported')
-            .setText(String(rowCount) + ' across ' + pluralize_(sheetCount, 'tab'))
+            .setTopLabel(timedOut ? 'Paused' : (result.appended ? 'Update' : 'Export'))
+            .setText(summaryText)
             .setBottomLabel(bottomLabel)
+            .setWrapText(true)
         )
     );
 
@@ -2055,6 +2123,7 @@ var HiEnergyCards = (function () {
     reports: reportsCard_,
     createSheet: createSheetCard_,
     sheetResult: sheetResultCard_,
+    sheetResultResponse: sheetResultActionResponse_,
     draftEmail: draftEmailPromptCard_,
     draftEmailForm: draftEmailFormCard_,
     draftResult: draftResultCard_,

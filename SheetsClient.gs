@@ -90,6 +90,7 @@ var HiEnergySheets = (function () {
       exportResult.hasMore = !paginationState.exhausted;
       exportResult.exhausted = !!paginationState.exhausted;
       exportResult.rowsThisBatch = paginationState.rowsThisBatch || exportResult.rowCount;
+      exportResult.timedOut = !!paginationState.timedOut;
       if (paginationState.nextPage) {
         exportResult.nextPage = paginationState.nextPage;
       }
@@ -527,6 +528,7 @@ var HiEnergySheets = (function () {
     return mergeExportMeta_(written, result.body, {
       exhausted: result.pagination.exhausted,
       hasMore: result.pagination.hasMore,
+      timedOut: result.pagination.timedOut,
       rowsThisBatch: batch.length,
       nextPage: result.pagination.nextPage,
       seenKeys: result.pagination.seenKeys
@@ -537,9 +539,11 @@ var HiEnergySheets = (function () {
     var query = session.query || '';
     var types = session.types || {};
     var typeList = ['advertisers', 'deals', 'transactions', 'contacts'];
+    var byType = {};
     var totalAppended = 0;
     var lastExport = null;
     var anyHasMore = false;
+    var anyTimedOut = false;
     var sharedBudget = HiEnergyConfig.exportTimeBudgetMs || 22000;
     var sharedDeadline = Date.now() + sharedBudget;
 
@@ -577,8 +581,16 @@ var HiEnergySheets = (function () {
         seenKeys: part.seenKeys || [],
         exhausted: !!part.exhausted
       };
+      byType[type] = {
+        rowCount: part.rowsThisBatch || part.rowCount || 0,
+        exhausted: !!part.exhausted,
+        timedOut: !!part.timedOut
+      };
       if (!part.exhausted) {
         anyHasMore = true;
+      }
+      if (part.timedOut) {
+        anyTimedOut = true;
       }
       totalAppended += part.rowsThisBatch || part.rowCount || 0;
       lastExport = part;
@@ -607,9 +619,12 @@ var HiEnergySheets = (function () {
 
     lastExport.hasMore = anyHasMore;
     lastExport.exhausted = !anyHasMore;
+    lastExport.timedOut = anyTimedOut;
     lastExport.appended = true;
     lastExport.rowCount = totalAppended;
+    lastExport.rowsThisBatch = totalAppended;
     lastExport.sheetCount = typeList.length;
+    lastExport.byType = byType;
     return lastExport;
   }
 
@@ -865,9 +880,11 @@ var HiEnergySheets = (function () {
 
     if (scope === 'all') {
       var types = {};
+      var byType = {};
       var totalRows = 0;
       var lastExport = null;
       var anyHasMore = false;
+      var anyTimedOut = false;
       var spreadsheetId = '';
       var allTypes = ['advertisers', 'deals', 'transactions', 'contacts'];
       var sharedBudget = HiEnergyConfig.exportTimeBudgetMs || 22000;
@@ -875,7 +892,9 @@ var HiEnergySheets = (function () {
       allTypes.forEach(function (type, index) {
         if (Date.now() >= sharedDeadline) {
           anyHasMore = true;
+          anyTimedOut = true;
           types[type] = types[type] || { nextPage: 1, seenKeys: [], exhausted: false };
+          byType[type] = byType[type] || { rowCount: 0, exhausted: false };
           return;
         }
         var partParams = { query: query };
@@ -893,9 +912,19 @@ var HiEnergySheets = (function () {
             seenKeys: part.seenKeys || [],
             exhausted: !!part.exhausted
           };
+          byType[type] = {
+            rowCount: part.rowCount || 0,
+            exhausted: !!part.exhausted,
+            timedOut: !!part.timedOut
+          };
           if (!part.exhausted) {
             anyHasMore = true;
           }
+          if (part.timedOut) {
+            anyTimedOut = true;
+          }
+        } else {
+          byType[type] = { rowCount: 0, error: part.error || 'unknown' };
         }
       });
       if (!lastExport || !lastExport.ok) {
@@ -915,8 +944,10 @@ var HiEnergySheets = (function () {
       });
       lastExport.hasMore = anyHasMore;
       lastExport.exhausted = !anyHasMore;
+      lastExport.timedOut = anyTimedOut;
       lastExport.sheetCount = allTypes.length;
       lastExport.rowCount = totalRows;
+      lastExport.byType = byType;
       return lastExport;
     }
 

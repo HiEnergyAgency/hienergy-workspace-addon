@@ -235,4 +235,42 @@ describe('sheetResultCard add-more visibility', function () {
     });
     expect(buttonTexts(captured)).not.toContain('Add more');
   });
+
+  it('shows Paused copy and per-type counts when an export times out', function () {
+    const captured = [];
+    const runtime = createGasContext({});
+    runtime.context.CardService = createCardServiceMock(captured);
+    loadGasFiles(runtime.context, ['Config.gs', 'McpExport.gs', 'Cards.gs']);
+
+    runtime.context.HiEnergyCards.sheetResult({
+      ok: true,
+      rowCount: 320,
+      sheetCount: 4,
+      hasMore: true,
+      timedOut: true,
+      usedActiveSpreadsheet: true,
+      url: 'https://docs.google.com/spreadsheets/d/abc/edit',
+      byType: {
+        advertisers: { rowCount: 150 },
+        deals: { rowCount: 100 },
+        transactions: { rowCount: 70 },
+        contacts: { rowCount: 0 }
+      }
+    });
+
+    const allText = captured
+      .filter(function (e) { return e.method === 'setText'; })
+      .map(function (e) { return String(e.args[0] || ''); });
+    const titles = captured
+      .filter(function (e) { return e.method === 'setTitle'; })
+      .map(function (e) { return String(e.args[0] || ''); });
+    expect(titles.some(function (t) { return t.indexOf('Paused at 320') !== -1; })).toBe(true);
+    expect(allText.some(function (t) { return t.indexOf('Advertisers 150') !== -1; })).toBe(true);
+    expect(allText.some(function (t) { return t.indexOf('Add more') !== -1; })).toBe(true);
+
+    const bottoms = captured
+      .filter(function (e) { return e.method === 'setBottomLabel'; })
+      .map(function (e) { return String(e.args[0] || ''); });
+    expect(bottoms.some(function (t) { return t.indexOf('22-second') !== -1; })).toBe(true);
+  });
 });
