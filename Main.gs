@@ -14,7 +14,11 @@ function onSearchAction(e) {
   ensureAuthenticated_();
   var query = e && e.parameters ? String(e.parameters.query || '').trim() : '';
   if (query) {
-    return HiEnergyCards.searchResults(query, HiEnergyApi.universalSearch(query));
+    var result = HiEnergyApi.universalSearch(query);
+    if (result.ok) {
+      HiEnergyMcpExport.cacheSearchResult(query, 'all', result);
+    }
+    return HiEnergyCards.searchResults(query, result);
   }
   return HiEnergyCards.search();
 }
@@ -55,7 +59,8 @@ function handleSearch(e) {
   }
 
   if (scope === 'contacts') {
-    return HiEnergyCards.contacts(query, HiEnergyContacts.search(query));
+    var contactsResult = HiEnergyContacts.search(query);
+    return HiEnergyCards.contacts(query, contactsResult);
   }
 
   if (scope === 'messages') {
@@ -64,13 +69,55 @@ function handleSearch(e) {
 
   ensureAuthenticated_();
 
+  if (scope === 'advertisers') {
+    var advertiserResult = HiEnergyApi.searchAdvertisers(query);
+    if (advertiserResult.ok) {
+      HiEnergyMcpExport.cacheAdvertiserSearch(query, 'name', advertiserResult);
+      var rows = (advertiserResult.body && advertiserResult.body.data) || [];
+      return HiEnergyCards.searchResults(
+        query,
+        {
+          ok: true,
+          body: {
+            results: {
+              advertisers: {
+                data: rows,
+                total: rows.length
+              }
+            }
+          }
+        },
+        { exportType: 'advertisers' }
+      );
+    }
+    return HiEnergyCards.searchResults(query, advertiserResult, { exportType: 'advertisers' });
+  }
+
+  if (scope === 'deals') {
+    var dealsResult = HiEnergyApi.searchDeals(query);
+    if (dealsResult.ok) {
+      HiEnergyMcpExport.cacheDealsSearch(query, dealsResult);
+    }
+    return HiEnergyCards.deals(query, dealsResult, 'deals');
+  }
+
+  if (scope === 'transactions') {
+    var transactionsResult = HiEnergyApi.searchTransactions({ q: query, days: 30 });
+    if (transactionsResult.ok) {
+      HiEnergyMcpExport.cacheTransactionsSearch(query, transactionsResult, { days: 30 });
+    }
+    return HiEnergyCards.transactions(query, transactionsResult, 'transactions');
+  }
+
   var typesByScope = {
-    advertisers: ['advertisers'],
     deals: ['deals'],
     transactions: ['transactions']
   };
   var types = typesByScope[scope] || null;
   var result = HiEnergyApi.universalSearch(query, types);
+  if (result.ok) {
+    HiEnergyMcpExport.cacheSearchResult(query, scope, result);
+  }
   return HiEnergyCards.searchResults(query, result);
 }
 
@@ -95,6 +142,8 @@ function handleDomainLookup(e) {
     return HiEnergyCards.advertiser(result);
   }
 
+  HiEnergyMcpExport.cacheAdvertiserSearch(domain, 'domain', result);
+
   var body = result.body || {};
   var rows = body.data || [];
   if (!rows.length) {
@@ -116,7 +165,7 @@ function handleDomainLookup(e) {
         }
       }
     }
-  });
+  }, { exportType: 'advertisers' });
 }
 
 function handleAdvertiserDeals(e) {
@@ -189,7 +238,29 @@ function handleMcpToolCall(e) {
   }
 
   var args = buildMcpToolArgs_(toolName, query, params);
-  return HiEnergyCards.mcpToolResult(toolName, query, HiEnergyApi.callMcpTool(toolName, args));
+  var result = HiEnergyApi.callMcpTool(toolName, args);
+  if (result.ok) {
+    HiEnergyMcpExport.cacheMcpToolResult(toolName, query, result);
+    if (toolName === 'universal_search') {
+      HiEnergyMcpExport.cacheSearchResult(query, params.types || 'all', result);
+    }
+    if (toolName === 'search_advertisers') {
+      HiEnergyMcpExport.cacheAdvertiserSearch(query, 'name', result);
+    }
+    if (toolName === 'search_advertisers_by_domain' || toolName === 'search_domains') {
+      HiEnergyMcpExport.cacheAdvertiserSearch(query || params.domain || '', 'domain', result);
+    }
+    if (toolName === 'search_deals') {
+      HiEnergyMcpExport.cacheDealsSearch(query, result);
+    }
+    if (toolName === 'search_transactions') {
+      HiEnergyMcpExport.cacheTransactionsSearch(query, result, { days: 30 });
+    }
+    if (toolName === 'get_advertiser_contacts') {
+      HiEnergyMcpExport.cacheAdvertiserContactsSearch(query || params.advertiser || '', result);
+    }
+  }
+  return HiEnergyCards.mcpToolResult(toolName, query, result);
 }
 
 function buildMcpToolArgs_(toolName, query, params) {
@@ -260,4 +331,199 @@ function ensureAuthenticated_() {
   if (HiEnergyAuth.isConfigured()) {
     HiEnergyAuth.requireAuthorization();
   }
+}
+
+function onCreateSheetAction() {
+  return HiEnergyCards.createSheet();
+}
+
+function handleCreateSheetFromSearch(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var query = String(form.query || '').trim();
+  var scope = String(form.scope || 'all');
+  var searchMode = String(form.searchMode || 'name');
+
+  if (!query) {
+    return HiEnergyCards.error('Missing query', 'Enter a search query to fetch MCP data for the sheet.');
+  }
+
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportSearch(query, scope, searchMode));
+}
+
+function handleCreateAdvertiserSheet(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var query = String(form.query || form.advertiserQuery || '').trim();
+  var searchMode = String(form.advertiserSearchMode || form.searchMode || 'name');
+
+  if (!query) {
+    return HiEnergyCards.error('Missing query', 'Enter an advertiser name or domain to search.');
+  }
+
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertisers(query, searchMode));
+}
+
+function handleExportCachedAdvertisersToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedAdvertisers());
+}
+
+function handleCreateDealsSheet(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var query = String(form.dealsQuery || form.query || '').trim();
+  if (!query) {
+    return HiEnergyCards.error('Missing query', 'Enter a deal keyword to search.');
+  }
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportDeals(query));
+}
+
+function handleExportCachedDealsToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedDeals());
+}
+
+function handleCreateTransactionsSheet(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var query = String(form.transactionsQuery || form.query || '').trim();
+  var days = String(form.transactionDays || '30');
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportTransactions(query, days));
+}
+
+function handleExportCachedTransactionsToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedTransactions());
+}
+
+function handleCreateAdvertiserContactsSheet(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var params = (e && e.parameters) || {};
+  var advertiser = String(form.advertiserContactsQuery || params.advertiser || '').trim();
+  if (!advertiser) {
+    return HiEnergyCards.error('Missing advertiser', 'Enter an advertiser id or slug.');
+  }
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(advertiser));
+}
+
+function handleExportCachedAdvertiserContactsToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedAdvertiserContacts());
+}
+
+function handleCreateGoogleContactsSheet(e) {
+  var form = (e && e.formInput) || {};
+  var params = (e && e.parameters) || {};
+  var query = String(form.googleContactsQuery || params.query || '').trim();
+  if (!query) {
+    return HiEnergyCards.error('Missing query', 'Enter a name, email, or company to search.');
+  }
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportGoogleContacts(query));
+}
+
+function handleExportCachedGoogleContactsToSheet() {
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedGoogleContacts());
+}
+
+function handleExportCachedSearchToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedSearch());
+}
+
+function handleExportMcpResultToSheet() {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedMcpTool());
+}
+
+function onDraftEmailAction() {
+  ensureAuthenticated_();
+  return HiEnergyCards.draftEmail();
+}
+
+function handleDraftEmailFromContext(e) {
+  ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var domain = params.domain || '';
+  if (!domain) {
+    return HiEnergyCards.error('Missing domain', 'Could not read a domain from the message.');
+  }
+
+  var context = {
+    senderEmail: params.senderEmail || '',
+    senderName: params.senderName || '',
+    message: {
+      id: params.messageId || '',
+      subject: params.subject || ''
+    }
+  };
+
+  var prepared = HiEnergyGmailDrafts.prepareFromDomain(domain, context);
+  if (!prepared.ok) {
+    return HiEnergyCards.error('Draft failed', prepared.message || prepared.error || 'Could not prepare draft.');
+  }
+
+  return HiEnergyCards.draftEmailForm(prepared.draft, {
+    replyToMessageId: prepared.replyToMessageId || ''
+  });
+}
+
+function handleDraftEmailFromAdvertiser(e) {
+  ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var id = params.id || '';
+  var name = params.name || '';
+  if (!id) {
+    return HiEnergyCards.error('Missing advertiser', 'No advertiser id was provided.');
+  }
+
+  var prepared = HiEnergyGmailDrafts.prepareFromAdvertiser(id, name);
+  if (!prepared.ok) {
+    return HiEnergyCards.apiError(prepared);
+  }
+
+  return HiEnergyCards.draftEmailForm(prepared.draft, {});
+}
+
+function handlePrepareDraftEmail(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var domain = String(form.domain || '').trim();
+  var advertiserId = String(form.advertiserId || '').trim();
+
+  if (domain) {
+    var fromDomain = HiEnergyGmailDrafts.prepareFromDomain(domain, {});
+    if (!fromDomain.ok) {
+      return HiEnergyCards.error('Draft failed', fromDomain.message || fromDomain.error || 'Could not prepare draft.');
+    }
+    return HiEnergyCards.draftEmailForm(fromDomain.draft, {
+      replyToMessageId: fromDomain.replyToMessageId || ''
+    });
+  }
+
+  if (advertiserId) {
+    var fromAdvertiser = HiEnergyGmailDrafts.prepareFromAdvertiser(advertiserId, '');
+    if (!fromAdvertiser.ok) {
+      return HiEnergyCards.apiError(fromAdvertiser);
+    }
+    return HiEnergyCards.draftEmailForm(fromAdvertiser.draft, {});
+  }
+
+  return HiEnergyCards.error('Missing input', 'Enter a domain or advertiser id to load MCP data.');
+}
+
+function handleCreateDraftEmail(e) {
+  var form = (e && e.formInput) || {};
+  var params = (e && e.parameters) || {};
+  var to = String(form.to || '').trim();
+  var subject = String(form.subject || '').trim();
+  var body = String(form.body || '').trim();
+  var options = {};
+
+  if (params.replyToMessageId) {
+    options.replyToMessageId = params.replyToMessageId;
+  }
+
+  return HiEnergyCards.draftResult(HiEnergyGmailDrafts.createDraft(to, subject, body, options));
 }

@@ -28,12 +28,13 @@ function collectFunctions(code) {
 const definedFunctions = collectFunctions(source);
 const requiredFunctions = [
   manifest.addOns.common.homepageTrigger.runFunction,
-  manifest.addOns.common.universalActions[0].runFunction,
-  manifest.addOns.common.universalActions[1].runFunction,
-  manifest.addOns.common.universalActions[2].runFunction,
   manifest.addOns.gmail.contextualTriggers[0].onTriggerFunction,
   'authCallback'
-];
+].concat(
+  manifest.addOns.common.universalActions.map(function (action) {
+    return action.runFunction;
+  })
+);
 
 const missing = requiredFunctions.filter(function (name) {
   return !definedFunctions.has(name);

@@ -75,25 +75,48 @@ var HiEnergyContacts = (function () {
   }
 
   function search(query) {
+    return searchWithLimit_(query, HiEnergyConfig.contactLimit);
+  }
+
+  function searchForSheet(query) {
+    return searchWithLimit_(query, HiEnergyConfig.sheetContactLimit);
+  }
+
+  function searchWithLimit_(query, maxResults) {
     var normalized = String(query || '').trim();
     if (!normalized) {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter a name, email, or company to search contacts.' };
     }
 
+    var limit = maxResults || HiEnergyConfig.contactLimit;
+    var pageSize = Math.min(30, limit);
+
     try {
-      var response = People.People.searchContacts({
-        query: normalized,
-        readMask: 'names,emailAddresses,organizations,phoneNumbers',
-        pageSize: HiEnergyConfig.contactLimit
-      });
+      var contacts = [];
+      var pageToken = null;
 
-      var contacts = (response.results || [])
-        .map(function (result) {
-          return normalizePerson_(result.person);
-        })
-        .filter(Boolean);
+      do {
+        var request = {
+          query: normalized,
+          readMask: 'names,emailAddresses,organizations,phoneNumbers',
+          pageSize: Math.min(pageSize, limit - contacts.length)
+        };
+        if (pageToken) {
+          request.pageToken = pageToken;
+        }
 
-      return { ok: true, contacts: contacts };
+        var response = People.People.searchContacts(request);
+        var batch = (response.results || [])
+          .map(function (result) {
+            return normalizePerson_(result.person);
+          })
+          .filter(Boolean);
+
+        contacts = contacts.concat(batch);
+        pageToken = response.nextPageToken || null;
+      } while (pageToken && contacts.length < limit);
+
+      return { ok: true, contacts: contacts.slice(0, limit) };
     } catch (err) {
       console.warn('Contact search failed: ' + err);
       return { ok: false, error: 'CONTACTS_ERROR', message: String(err) };
@@ -102,6 +125,7 @@ var HiEnergyContacts = (function () {
 
   return {
     lookupByEmail: lookupByEmail,
-    search: search
+    search: search,
+    searchForSheet: searchForSheet
   };
 })();

@@ -19,7 +19,10 @@ module.exports = [
         HiEnergyMcp: 'readonly',
         HiEnergyCards: 'readonly',
         HiEnergyGmail: 'readonly',
+        HiEnergyGmailDrafts: 'readonly',
         HiEnergyContacts: 'readonly',
+        HiEnergyMcpExport: 'readonly',
+        HiEnergySheets: 'readonly',
         OAuth2: 'readonly',
         People: 'readonly'
       })

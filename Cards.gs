@@ -284,7 +284,54 @@ var HiEnergyCards = (function () {
       .setOpenLink(CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE));
   }
 
-  function searchResultsCard_(query, result) {
+  function exportSheetButton_(exportType) {
+    if (exportType === true) {
+      return CardService.newTextButton()
+        .setText('Export to Google Sheet')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('handleExportMcpResultToSheet')
+        );
+    }
+
+    var config = {
+      advertisers: {
+        label: 'Export advertisers to Google Sheet',
+        handler: 'handleExportCachedAdvertisersToSheet'
+      },
+      deals: {
+        label: 'Export deals to Google Sheet',
+        handler: 'handleExportCachedDealsToSheet'
+      },
+      transactions: {
+        label: 'Export transactions to Google Sheet',
+        handler: 'handleExportCachedTransactionsToSheet'
+      },
+      advertiser_contacts: {
+        label: 'Export contacts to Google Sheet',
+        handler: 'handleExportCachedAdvertiserContactsToSheet'
+      },
+      google_contacts: {
+        label: 'Export contacts to Google Sheet',
+        handler: 'handleExportCachedGoogleContactsToSheet'
+      }
+    };
+
+    var entry = config[exportType];
+    if (!entry) {
+      return CardService.newTextButton()
+        .setText('Export to Google Sheet')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('handleExportCachedSearchToSheet')
+        );
+    }
+
+    return CardService.newTextButton()
+      .setText(entry.label)
+      .setOnClickAction(CardService.newAction().setFunctionName(entry.handler));
+  }
+
+  function searchResultsCard_(query, result, options) {
+    options = options || {};
     if (!result.ok) {
       return apiErrorCard_(result);
     }
@@ -339,6 +386,12 @@ var HiEnergyCards = (function () {
 
     if (!found) {
       card.addSection(sectionText_('No results for <b>' + query + '</b>.'));
+    } else {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Export')
+          .addWidget(exportSheetButton_(options.exportType))
+      );
     }
 
     card.addSection(
@@ -407,6 +460,24 @@ var HiEnergyCards = (function () {
             .setParameters({ id: String(attrs.slug || id), name: name })
         )
     );
+    actions.addWidget(
+      CardService.newTextButton()
+        .setText('Draft email with MCP data')
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('handleDraftEmailFromAdvertiser')
+            .setParameters({ id: String(attrs.slug || id), name: name })
+        )
+    );
+    actions.addWidget(
+      CardService.newTextButton()
+        .setText('Export contacts to sheet')
+        .setOnClickAction(
+          CardService.newAction()
+            .setFunctionName('handleCreateAdvertiserContactsSheet')
+            .setParameters({ advertiser: String(attrs.slug || id) })
+        )
+    );
     card.addSection(actions);
 
     return card.build();
@@ -427,7 +498,7 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
-  function dealsCard_(advertiserName, result) {
+  function dealsCard_(advertiserName, result, exportType) {
     if (!result.ok) {
       return apiErrorCard_(result);
     }
@@ -440,16 +511,35 @@ var HiEnergyCards = (function () {
       rows = body;
     }
 
-    return listCard_('Deals', advertiserName || 'Recent deals', rows, function (row) {
-      var attrs = row.attributes || row;
-      return CardService.newDecoratedText()
-        .setText(attrs.title || attrs.name || row.id)
-        .setBottomLabel([attrs.advertiser_name, attrs.country, attrs.status].filter(Boolean).join(' · '))
-        .setWrapText(true);
-    });
+    var card = CardService.newCardBuilder().setHeader(header_('Deals', advertiserName || 'Recent deals'));
+    if (!rows.length) {
+      card.addSection(sectionText_('Nothing to show.'));
+    } else {
+      var section = CardService.newCardSection();
+      rows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+        var attrs = row.attributes || row;
+        section.addWidget(
+          CardService.newDecoratedText()
+            .setText(attrs.title || attrs.name || row.id)
+            .setBottomLabel([attrs.advertiser_name, attrs.country, attrs.status].filter(Boolean).join(' · '))
+            .setWrapText(true)
+        );
+      });
+      card.addSection(section);
+    }
+
+    if (exportType) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Export')
+          .addWidget(exportSheetButton_(exportType === true ? null : exportType))
+      );
+    }
+
+    return card.build();
   }
 
-  function transactionsCard_(advertiserName, result) {
+  function transactionsCard_(advertiserName, result, exportType) {
     if (!result.ok) {
       return apiErrorCard_(result);
     }
@@ -462,13 +552,32 @@ var HiEnergyCards = (function () {
       rows = body;
     }
 
-    return listCard_('Transactions', advertiserName || 'Last 30 days', rows, function (row) {
-      var attrs = row.attributes || row;
-      return CardService.newDecoratedText()
-        .setText((attrs.advertiser_name || 'Transaction') + ' · ' + (attrs.commission_amount || attrs.commission || ''))
-        .setBottomLabel([attrs.network_name, attrs.transaction_date, attrs.status].filter(Boolean).join(' · '))
-        .setWrapText(true);
-    });
+    var card = CardService.newCardBuilder().setHeader(header_('Transactions', advertiserName || 'Last 30 days'));
+    if (!rows.length) {
+      card.addSection(sectionText_('Nothing to show.'));
+    } else {
+      var section = CardService.newCardSection();
+      rows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+        var attrs = row.attributes || row;
+        section.addWidget(
+          CardService.newDecoratedText()
+            .setText((attrs.advertiser_name || 'Transaction') + ' · ' + (attrs.commission_amount || attrs.commission || ''))
+            .setBottomLabel([attrs.network_name, attrs.transaction_date, attrs.status].filter(Boolean).join(' · '))
+            .setWrapText(true)
+        );
+      });
+      card.addSection(section);
+    }
+
+    if (exportType) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Export')
+          .addWidget(exportSheetButton_(exportType === true ? null : exportType))
+      );
+    }
+
+    return card.build();
   }
 
   function formatDate_(date) {
@@ -529,6 +638,18 @@ var HiEnergyCards = (function () {
       });
       card.addSection(section);
     }
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Export contacts to Google Sheet')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleCreateGoogleContactsSheet')
+              .setParameters({ query: query })
+          )
+      )
+    );
 
     card.addSection(
       CardService.newCardSection().addWidget(
@@ -686,6 +807,21 @@ var HiEnergyCards = (function () {
                 .setParameters({ query: domain })
             )
         )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Draft email with MCP data')
+            .setOnClickAction(
+              CardService.newAction()
+                .setFunctionName('handleDraftEmailFromContext')
+                .setParameters({
+                  domain: domain,
+                  senderEmail: context.senderEmail || '',
+                  senderName: context.senderName || '',
+                  messageId: message.id ? String(message.id) : '',
+                  subject: message.subject || ''
+                })
+            )
+        )
     );
 
     return card.build();
@@ -785,8 +921,29 @@ var HiEnergyCards = (function () {
       return apiErrorCard_(result);
     }
 
-    if (toolName === 'universal_search' || toolName === 'search_advertisers') {
+    if (toolName === 'universal_search') {
       return searchResultsCard_(query || toolName, result);
+    }
+    if (toolName === 'search_advertisers') {
+      var advertiserRows = (result.body && result.body.data) || result.body || [];
+      if (!Array.isArray(advertiserRows)) {
+        advertiserRows = [];
+      }
+      return searchResultsCard_(
+        query || toolName,
+        {
+          ok: true,
+          body: {
+            results: {
+              advertisers: {
+                data: advertiserRows,
+                total: advertiserRows.length
+              }
+            }
+          }
+        },
+        { exportType: 'advertisers' }
+      );
     }
     if (toolName === 'search_advertisers_by_domain' || toolName === 'search_domains') {
       return searchResultsCard_(query || toolName, {
@@ -799,35 +956,534 @@ var HiEnergyCards = (function () {
             }
           }
         }
-      });
+      }, { exportType: 'advertisers' });
     }
     if (toolName === 'get_advertiser') {
       return advertiserCard_(result);
     }
     if (toolName === 'search_deals') {
-      return dealsCard_(query || 'Deals', result);
+      return dealsCard_(query || 'Deals', result, 'deals');
     }
     if (toolName === 'search_transactions') {
-      return transactionsCard_(query || 'Transactions', result);
+      return transactionsCard_(query || 'Transactions', result, 'transactions');
     }
     if (toolName === 'get_advertiser_contacts') {
-      var rows = (result.body && result.body.data) || result.body || [];
-      if (!Array.isArray(rows)) {
-        rows = [];
+      var advertiserContactRows = (result.body && result.body.data) || result.body || [];
+      if (!Array.isArray(advertiserContactRows)) {
+        advertiserContactRows = [];
       }
-      return listCard_('Advertiser contacts', query || toolName, rows, function (row) {
-        var attrs = row.attributes || row;
-        return CardService.newDecoratedText()
-          .setText([attrs.given_name, attrs.family_name].filter(Boolean).join(' ') || attrs.email || row.id)
-          .setBottomLabel([attrs.email, attrs.job_title, attrs.phone].filter(Boolean).join(' · '))
-          .setWrapText(true);
-      });
+
+      var contactsResultCard = CardService.newCardBuilder().setHeader(
+        header_('Advertiser contacts', query || toolName)
+      );
+
+      if (!advertiserContactRows.length) {
+        contactsResultCard.addSection(sectionText_('No contacts returned.'));
+      } else {
+        var contactsSection = CardService.newCardSection();
+        advertiserContactRows.slice(0, HiEnergyConfig.perTypeLimit).forEach(function (row) {
+          var attrs = row.attributes || row;
+          contactsSection.addWidget(
+            CardService.newDecoratedText()
+              .setText([attrs.given_name, attrs.family_name].filter(Boolean).join(' ') || attrs.email || row.id)
+              .setBottomLabel([attrs.email, attrs.job_title, attrs.phone].filter(Boolean).join(' · '))
+              .setWrapText(true)
+          );
+        });
+        contactsResultCard.addSection(contactsSection);
+      }
+
+      contactsResultCard.addSection(
+        CardService.newCardSection()
+          .setHeader('Export')
+          .addWidget(exportSheetButton_('advertiser_contacts'))
+      );
+      return contactsResultCard.build();
     }
 
     var card = CardService.newCardBuilder().setHeader(
       header_('MCP result', toolName)
     );
     card.addSection(sectionText_('<pre>' + summarizeJson_(result.body) + '</pre>'));
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Export')
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Export to Google Sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleExportMcpResultToSheet')
+            )
+        )
+    );
+    return card.build();
+  }
+
+  function createSheetCard_() {
+    var cachedAdvertisers = HiEnergyMcpExport.readCachedAdvertiserSearch();
+    var cachedDeals = HiEnergyMcpExport.readCachedDealsSearch();
+    var cachedTransactions = HiEnergyMcpExport.readCachedTransactionsSearch();
+    var cachedAdvertiserContacts = HiEnergyMcpExport.readCachedAdvertiserContactsSearch();
+    var cachedGoogleContacts = HiEnergyMcpExport.readCachedGoogleContactsSearch();
+    var cached = HiEnergyMcpExport.readCachedSearch();
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Create Sheet', 'Export Hi Energy and Google data to Sheets')
+    );
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Advertiser search')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('advertiserQuery')
+            .setTitle('Advertiser name or domain')
+            .setValue(cachedAdvertisers && cachedAdvertisers.query ? cachedAdvertisers.query : '')
+            .setHint('e.g. Nike or nike.com')
+        )
+        .addWidget(
+          CardService.newSelectionInput()
+            .setType(CardService.SelectionInputType.DROPDOWN)
+            .setTitle('Search by')
+            .setFieldName('advertiserSearchMode')
+            .addItem('Name (advertiser API)', 'name', true)
+            .addItem('Domain', 'domain', false)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Search advertisers & create sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateAdvertiserSheet')
+            )
+        )
+    );
+
+    if (cachedAdvertisers && cachedAdvertisers.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest advertiser search')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText('"' + (cachedAdvertisers.query || '') + '"')
+              .setBottomLabel(
+                (cachedAdvertisers.searchMode === 'domain' ? 'Domain' : 'Name') +
+                  ' · cached ' +
+                  (cachedAdvertisers.cachedAt || '')
+              )
+              .setWrapText(true)
+          )
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Export latest advertiser results')
+              .setOnClickAction(
+                CardService.newAction().setFunctionName('handleExportCachedAdvertisersToSheet')
+              )
+          )
+      );
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Deals search')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('dealsQuery')
+            .setTitle('Deal keyword')
+            .setValue(cachedDeals && cachedDeals.query ? cachedDeals.query : '')
+            .setHint('e.g. coupon, sale, holiday')
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Search deals & create sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateDealsSheet')
+            )
+        )
+    );
+
+    if (cachedDeals && cachedDeals.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest deals search')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText('"' + (cachedDeals.query || '') + '"')
+              .setBottomLabel('Cached ' + (cachedDeals.cachedAt || ''))
+              .setWrapText(true)
+          )
+          .addWidget(exportSheetButton_('deals'))
+      );
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Transactions search')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('transactionsQuery')
+            .setTitle('Transaction keyword (optional)')
+            .setValue(cachedTransactions && cachedTransactions.query ? cachedTransactions.query : '')
+            .setHint('Advertiser or network name')
+        )
+        .addWidget(
+          CardService.newSelectionInput()
+            .setType(CardService.SelectionInputType.DROPDOWN)
+            .setTitle('Days')
+            .setFieldName('transactionDays')
+            .addItem('Last 30 days', '30', true)
+            .addItem('Last 60 days', '60', false)
+            .addItem('Last 90 days', '90', false)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Search transactions & create sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateTransactionsSheet')
+            )
+        )
+    );
+
+    if (cachedTransactions && cachedTransactions.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest transactions search')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText('"' + (cachedTransactions.query || 'Recent') + '"')
+              .setBottomLabel('Cached ' + (cachedTransactions.cachedAt || ''))
+              .setWrapText(true)
+          )
+          .addWidget(exportSheetButton_('transactions'))
+      );
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Advertiser contacts (Hi Energy API)')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('advertiserContactsQuery')
+            .setTitle('Advertiser id or slug')
+            .setValue(cachedAdvertiserContacts && cachedAdvertiserContacts.query ? cachedAdvertiserContacts.query : '')
+            .setHint('e.g. nike or advertiser slug')
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Fetch contacts & create sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateAdvertiserContactsSheet')
+            )
+        )
+    );
+
+    if (cachedAdvertiserContacts && cachedAdvertiserContacts.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest advertiser contacts')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText(cachedAdvertiserContacts.query || '')
+              .setBottomLabel('Cached ' + (cachedAdvertiserContacts.cachedAt || ''))
+              .setWrapText(true)
+          )
+          .addWidget(exportSheetButton_('advertiser_contacts'))
+      );
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Google Contacts')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('googleContactsQuery')
+            .setTitle('Contact search')
+            .setValue(cachedGoogleContacts && cachedGoogleContacts.query ? cachedGoogleContacts.query : '')
+            .setHint('Name, email, or company')
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Search contacts & create sheet')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateGoogleContactsSheet')
+            )
+        )
+    );
+
+    if (cachedGoogleContacts && cachedGoogleContacts.contacts && cachedGoogleContacts.contacts.length) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest Google Contacts search')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText('"' + (cachedGoogleContacts.query || '') + '"')
+              .setBottomLabel('Cached ' + (cachedGoogleContacts.cachedAt || ''))
+              .setWrapText(true)
+          )
+          .addWidget(exportSheetButton_('google_contacts'))
+      );
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Universal search')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('query')
+            .setTitle('Search query')
+            .setValue(cached && cached.query ? cached.query : '')
+            .setHint('Brand, domain, or deal keyword')
+        )
+        .addWidget(
+          CardService.newSelectionInput()
+            .setType(CardService.SelectionInputType.DROPDOWN)
+            .setTitle('Scope')
+            .setFieldName('scope')
+            .addItem('Everything', 'all', true)
+            .addItem('Advertisers (advertiser API)', 'advertisers', false)
+            .addItem('Deals (deals API)', 'deals', false)
+            .addItem('Transactions (transactions API)', 'transactions', false)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Create sheet from search')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateSheetFromSearch')
+            )
+        )
+    );
+
+    if (cached && cached.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest search')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText('"' + (cached.query || '') + '"')
+              .setBottomLabel('Cached ' + (cached.cachedAt || ''))
+              .setWrapText(true)
+          )
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Export latest search results')
+              .setOnClickAction(
+                CardService.newAction().setFunctionName('handleExportCachedSearchToSheet')
+              )
+          )
+      );
+    }
+
+    var cachedMcp = HiEnergyMcpExport.readCachedMcpTool();
+    if (cachedMcp && cachedMcp.body) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Latest MCP tool')
+          .addWidget(
+            CardService.newDecoratedText()
+              .setText(cachedMcp.toolName || 'MCP tool')
+              .setBottomLabel(cachedMcp.query || cachedMcp.cachedAt || '')
+              .setWrapText(true)
+          )
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Export latest MCP tool results')
+              .setOnClickAction(
+                CardService.newAction().setFunctionName('handleExportMcpResultToSheet')
+              )
+          )
+      );
+    }
+
+    return card.build();
+  }
+
+  function sheetResultCard_(result) {
+    if (!result.ok) {
+      if (result.error === 'NO_DATA' || result.error === 'NO_CACHE') {
+        return errorCard_('Nothing to export', result.message || 'No MCP data available to export.');
+      }
+      if (result.error === 'SHEETS_ERROR') {
+        return errorCard_('Sheets error', result.message || 'Could not create the spreadsheet.');
+      }
+      return apiErrorCard_(result);
+    }
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Sheet created', HiEnergyConfig.brandName)
+    );
+
+    card.addSection(
+      CardService.newCardSection()
+        .addWidget(
+          CardService.newDecoratedText()
+            .setTopLabel('Rows exported')
+            .setText(String(result.rowCount || 0) + ' across ' + String(result.sheetCount || 1) + ' tab(s)')
+        )
+    );
+
+    var openBtn = openUrlButton_('Open spreadsheet', result.url);
+    if (openBtn) {
+      card.addSection(CardService.newCardSection().addWidget(openBtn));
+    }
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Create another sheet')
+          .setOnClickAction(CardService.newAction().setFunctionName('onCreateSheetAction'))
+      )
+    );
+
+    return card.build();
+  }
+
+  function draftEmailPromptCard_() {
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Draft Email', 'Create a Gmail draft with MCP data')
+    );
+
+    card.addSection(
+      sectionText_(
+        'Load advertiser and deal details from the MCP server, edit the draft, then save it to Gmail.'
+      )
+    );
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Load from MCP')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('domain')
+            .setTitle('Domain (optional)')
+            .setHint('example.com')
+        )
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('advertiserId')
+            .setTitle('Advertiser id or slug (optional)')
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Prepare draft from MCP')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handlePrepareDraftEmail')
+            )
+        )
+    );
+
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('Manual draft')
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('to')
+            .setTitle('To')
+        )
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('subject')
+            .setTitle('Subject')
+        )
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('body')
+            .setTitle('Body')
+            .setMultiline(true)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Create Gmail draft')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('handleCreateDraftEmail')
+            )
+        )
+    );
+
+    return card.build();
+  }
+
+  function draftEmailFormCard_(draft, options) {
+    options = options || {};
+    draft = draft || {};
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Review draft', 'Edit before saving to Gmail')
+    );
+
+    var section = CardService.newCardSection()
+      .addWidget(
+        CardService.newTextInput()
+          .setFieldName('to')
+          .setTitle('To')
+          .setValue(draft.to || '')
+      )
+      .addWidget(
+        CardService.newTextInput()
+          .setFieldName('subject')
+          .setTitle('Subject')
+          .setValue(draft.subject || '')
+      )
+      .addWidget(
+        CardService.newTextInput()
+          .setFieldName('body')
+          .setTitle('Body')
+          .setMultiline(true)
+          .setValue(draft.body || '')
+      )
+      .addWidget(
+        CardService.newTextButton()
+          .setText('Create Gmail draft')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleCreateDraftEmail')
+              .setParameters({
+                replyToMessageId: options.replyToMessageId ? String(options.replyToMessageId) : ''
+              })
+          )
+      );
+
+    card.addSection(section);
+    return card.build();
+  }
+
+  function draftResultCard_(result) {
+    if (!result.ok) {
+      if (result.error === 'MISSING_RECIPIENT' || result.error === 'MISSING_BODY') {
+        return errorCard_('Draft incomplete', result.message || 'Fill in all draft fields.');
+      }
+      return errorCard_('Draft failed', result.message || result.error || 'Could not create Gmail draft.');
+    }
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Draft saved', 'Gmail draft created')
+    );
+
+    card.addSection(
+      CardService.newCardSection()
+        .addWidget(
+          CardService.newDecoratedText()
+            .setTopLabel('To')
+            .setText(result.to || '')
+        )
+        .addWidget(
+          CardService.newDecoratedText()
+            .setTopLabel('Subject')
+            .setText(result.subject || '')
+            .setWrapText(true)
+        )
+    );
+
+    var openBtn = openUrlButton_('Open in Gmail', result.gmailUrl);
+    if (openBtn) {
+      card.addSection(CardService.newCardSection().addWidget(openBtn));
+    }
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Draft another email')
+          .setOnClickAction(CardService.newAction().setFunctionName('onDraftEmailAction'))
+      )
+    );
+
     return card.build();
   }
 
@@ -846,6 +1502,12 @@ var HiEnergyCards = (function () {
     mcpTools: mcpToolsCard_,
     mcpToolPrompt: mcpToolPromptCard_,
     mcpToolResult: mcpToolResultCard_,
+    createSheet: createSheetCard_,
+    sheetResult: sheetResultCard_,
+    draftEmail: draftEmailPromptCard_,
+    draftEmailForm: draftEmailFormCard_,
+    draftResult: draftResultCard_,
+    apiError: apiErrorCard_,
     error: errorCard_
   };
 })();

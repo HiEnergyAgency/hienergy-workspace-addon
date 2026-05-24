@@ -11,12 +11,15 @@ describe('appsscript.json manifest', function () {
     expect(manifest.addOns.common.layoutProperties.primaryColor).toBe('#8b5cf6');
   });
 
-  it('includes Gmail, MCP, and Contacts scopes', function () {
+  it('includes Gmail, MCP, Contacts, Sheets, and compose scopes', function () {
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/gmail.readonly');
+    expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/gmail.compose');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/contacts.readonly');
+    expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/spreadsheets');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.external_request');
     expect(manifest.urlFetchWhitelist).toContain('https://app.hienergy.ai/');
     expect(manifest.addOns.common.openLinkUrlPrefixes).toContain('https://app.hienergy.ai/');
+    expect(manifest.addOns.common.openLinkUrlPrefixes).toContain('https://docs.google.com/');
   });
 
   it('enables the People advanced service', function () {
@@ -32,7 +35,7 @@ describe('appsscript.json manifest', function () {
     const labels = manifest.addOns.common.universalActions.map(function (action) {
       return action.label;
     });
-    expect(labels).toEqual(['Search', 'Settings', 'MCP Tools']);
+    expect(labels).toEqual(['Search', 'Settings', 'MCP Tools', 'Create Sheet', 'Draft Email']);
   });
 });
 
@@ -45,9 +48,12 @@ describe('source files', function () {
       'Config.gs',
       'ContactsClient.gs',
       'GmailClient.gs',
+      'GmailDrafts.gs',
       'Main.gs',
       'McpClient.gs',
-      'Setup.gs'
+      'McpExport.gs',
+      'Setup.gs',
+      'SheetsClient.gs'
     ];
 
     expected.forEach(function (file) {

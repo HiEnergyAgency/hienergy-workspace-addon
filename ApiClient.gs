@@ -146,44 +146,116 @@ var HiEnergyApi = (function () {
     );
   }
 
-  function deals_(query) {
+  function searchAdvertisers_(query, limit) {
+    var rowLimit = limit || HiEnergyConfig.advertiserSearchLimit;
+    var normalized = String(query || '').trim();
+    if (!normalized) {
+      return { ok: false, error: 'MISSING_QUERY', message: 'Enter an advertiser name to search.' };
+    }
+
     return withToolFallback_(
-      'search_deals',
+      'search_advertisers',
       {
-        q: query,
-        limit: HiEnergyConfig.perTypeLimit
+        name: normalized,
+        limit: rowLimit
       },
-      '/deals',
+      '/advertisers',
       {
         query: {
-          q: query,
-          limit: HiEnergyConfig.perTypeLimit
+          name: normalized,
+          limit: rowLimit
         }
       }
     );
   }
 
-  function transactions_(query) {
+  function deals_(query, limit) {
+    var rowLimit = limit || HiEnergyConfig.perTypeLimit;
+    var normalized = String(query || '').trim();
+    if (!normalized) {
+      return { ok: false, error: 'MISSING_QUERY', message: 'Enter a deal keyword to search.' };
+    }
+
     return withToolFallback_(
-      'search_transactions',
+      'search_deals',
       {
-        days: 30,
-        sort: 'commission_desc',
-        limit: HiEnergyConfig.perTypeLimit,
-        advertiser_id: query && query.advertiserId ? query.advertiserId : undefined,
-        q: query && query.q ? query.q : undefined
+        q: normalized,
+        limit: rowLimit
       },
-      '/transactions',
+      '/deals',
       {
         query: {
-          days: 30,
-          sort: 'commission_desc',
-          limit: HiEnergyConfig.perTypeLimit,
-          advertiser_id: query && query.advertiserId ? query.advertiserId : null,
-          q: query && query.q ? query.q : null
+          q: normalized,
+          limit: rowLimit
         }
       }
     );
+  }
+
+  function searchDeals_(query, limit) {
+    return deals_(query, limit || HiEnergyConfig.sheetRowLimit);
+  }
+
+  function transactions_(query, limit) {
+    var rowLimit = limit || HiEnergyConfig.perTypeLimit;
+    var options = typeof query === 'object' && query !== null ? query : { q: query };
+    var toolArgs = cleanArgs_({
+      days: options.days || 30,
+      sort: options.sort || 'commission_desc',
+      limit: rowLimit,
+      advertiser_id: options.advertiserId,
+      q: options.q
+    });
+    var restQuery = cleanArgs_({
+      days: options.days || 30,
+      sort: options.sort || 'commission_desc',
+      limit: rowLimit,
+      advertiser_id: options.advertiserId || null,
+      q: options.q || null
+    });
+
+    return withToolFallback_('search_transactions', toolArgs, '/transactions', { query: restQuery });
+  }
+
+  function searchTransactions_(query, limit, days) {
+    var options =
+      typeof query === 'object' && query !== null
+        ? query
+        : {
+            q: query,
+            days: days || 30,
+            limit: limit || HiEnergyConfig.sheetRowLimit
+          };
+    if (limit && !options.limit) {
+      options.limit = limit;
+    }
+    return transactions_(options, options.limit || HiEnergyConfig.sheetRowLimit);
+  }
+
+  function advertiserContacts_(advertiser) {
+    var normalized = String(advertiser || '').trim();
+    if (!normalized) {
+      return {
+        ok: false,
+        error: 'MISSING_ADVERTISER',
+        message: 'Enter an advertiser id or slug for contacts.'
+      };
+    }
+
+    return withToolFallback_(
+      'get_advertiser_contacts',
+      { advertiser: normalized },
+      '/advertisers/' + encodeURIComponent(normalized) + '/contacts',
+      { query: { advertiser: normalized } }
+    );
+  }
+
+  function legacyDeals_(query) {
+    return deals_(query, HiEnergyConfig.perTypeLimit);
+  }
+
+  function legacyTransactions_(query) {
+    return transactions_(query, HiEnergyConfig.perTypeLimit);
   }
 
   function listMcpTools_() {
@@ -221,8 +293,12 @@ var HiEnergyApi = (function () {
     universalSearch: universalSearch_,
     advertiserByDomain: advertiserByDomain_,
     advertiser: advertiser_,
-    deals: deals_,
-    transactions: transactions_,
+    searchAdvertisers: searchAdvertisers_,
+    searchDeals: searchDeals_,
+    searchTransactions: searchTransactions_,
+    advertiserContacts: advertiserContacts_,
+    deals: legacyDeals_,
+    transactions: legacyTransactions_,
     listMcpTools: listMcpTools_,
     callMcpTool: callMcpTool_
   };

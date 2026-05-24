@@ -25,7 +25,9 @@
     "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
     "https://www.googleapis.com/auth/gmail.addons.execute",
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/contacts.readonly"
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/spreadsheets"
   ],
   "urlFetchWhitelist": [
     "https://app.hienergy.ai/",
@@ -38,7 +40,8 @@
       "openLinkUrlPrefixes": [
         "https://app.hienergy.ai/",
         "https://www.hienergy.ai/",
-        "https://hienergy.ai/"
+        "https://hienergy.ai/",
+        "https://docs.google.com/"
       ],
       "layoutProperties": {
         "primaryColor": "#8b5cf6",
@@ -61,6 +64,14 @@
         {
           "label": "MCP Tools",
           "runFunction": "onMcpTools"
+        },
+        {
+          "label": "Create Sheet",
+          "runFunction": "onCreateSheetAction"
+        },
+        {
+          "label": "Draft Email",
+          "runFunction": "onDraftEmailAction"
         }
       ]
     },
