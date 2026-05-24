@@ -1854,113 +1854,118 @@ var HiEnergyCards = (function () {
     var timedOut = !!(result.timedOut || (result.meta && result.meta.timedOut));
     var rowCount = result.rowCount || 0;
     var sheetCount = result.sheetCount || 1;
+    var rowWord = rowCount === 1 ? 'row' : 'rows';
 
     var title;
+    var statusLabel;
     if (timedOut) {
-      title = 'Paused at ' + rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows');
+      title = 'Paused at ' + rowCount + ' ' + rowWord;
+      statusLabel = 'Paused — more available';
     } else if (result.exhausted) {
-      title = rowCount ? 'All ' + rowCount + ' ' + (rowCount === 1 ? 'row' : 'rows') + ' exported' : 'Nothing new to export';
+      title = rowCount ? rowCount + ' ' + rowWord + ' exported' : 'Nothing new';
+      statusLabel = 'Complete';
     } else if (result.appended) {
-      title = '+' + (result.rowsThisBatch || rowCount) + ' more rows added';
+      var added = result.rowsThisBatch || rowCount;
+      title = '+' + added + ' ' + (added === 1 ? 'row' : 'rows') + ' added';
+      statusLabel = result.hasMore ? 'More available' : 'Up to date';
+    } else if (result.usedActiveSpreadsheet) {
+      title = rowCount + ' ' + rowWord + ' exported';
+      statusLabel = result.hasMore ? 'More available' : 'Complete';
     } else {
-      title = result.usedActiveSpreadsheet ? 'Exported ' + rowCount + ' rows' : 'Sheet created · ' + rowCount + ' rows';
+      title = 'Sheet created';
+      statusLabel = rowCount + ' ' + rowWord + ' · ' + pluralize_(sheetCount, 'tab');
     }
 
     var subtitle = result.usedActiveSpreadsheet
-      ? 'In this spreadsheet · ' + pluralize_(sheetCount, 'tab')
+      ? 'This spreadsheet · ' + pluralize_(sheetCount, 'tab')
       : HiEnergyConfig.brandName + ' · ' + pluralize_(sheetCount, 'tab');
     var card = CardService.newCardBuilder().setHeader(header_(title, subtitle));
 
     var bottomLabel = '';
     if (timedOut) {
-      bottomLabel = 'Stopped at the 22-second limit — click Add more to keep going.';
-    } else if (result.appended && result.hasMore) {
-      bottomLabel = 'More rows are still available. Click Add more to continue.';
-    } else if (result.appended) {
-      bottomLabel = 'All available rows have been added to this sheet.';
+      bottomLabel = 'Hit the 22-second safety limit. Click Add more to keep going.';
     } else if (result.hasMore) {
-      bottomLabel = 'More rows available. Click Add more to continue.';
-    } else if (result.exhausted) {
-      bottomLabel = 'No more rows to fetch.';
-    } else if (result.truncated && result.totalAvailable) {
-      bottomLabel = 'First ' + rowCount + ' of ' + result.totalAvailable + ' total — click Add more.';
-    } else if (typeof result.totalAvailable === 'number' && result.totalAvailable > 0) {
-      bottomLabel = 'Complete (' + result.totalAvailable + ' rows).';
-    } else {
-      bottomLabel = 'Done.';
+      bottomLabel = 'More rows available — click Add more to continue.';
+    } else if (result.appended) {
+      bottomLabel = 'Latest rows appended to the existing tabs.';
+    } else if (result.exhausted || (typeof result.totalAvailable === 'number' && result.totalAvailable > 0)) {
+      bottomLabel = 'Nothing left to fetch.';
     }
 
-    var summaryText = String(rowCount) + ' ' + (rowCount === 1 ? 'row' : 'rows') +
-      ' · ' + pluralize_(sheetCount, 'tab');
+    var perTypeLine = '';
     if (result.byType) {
-      var perType = Object.keys(result.byType)
+      perTypeLine = Object.keys(result.byType)
+        .filter(function (type) {
+          var info = result.byType[type] || {};
+          return (info.rowCount || 0) > 0;
+        })
         .map(function (type) {
           var info = result.byType[type] || {};
           var label = type.charAt(0).toUpperCase() + type.slice(1);
-          return label + ' ' + (info.rowCount || 0);
+          return label + ' ' + info.rowCount;
         })
         .join(' · ');
-      if (perType) {
-        summaryText = perType;
-      }
     }
+    var summaryText = perTypeLine ||
+      (rowCount + ' ' + rowWord + ' · ' + pluralize_(sheetCount, 'tab'));
 
-    card.addSection(
-      CardService.newCardSection()
-        .addWidget(
-          CardService.newDecoratedText()
-            .setTopLabel(timedOut ? 'Paused' : (result.appended ? 'Update' : 'Export'))
-            .setText(summaryText)
-            .setBottomLabel(bottomLabel)
-            .setWrapText(true)
-        )
-    );
+    var summary = CardService.newDecoratedText()
+      .setTopLabel(statusLabel)
+      .setText(summaryText)
+      .setWrapText(true);
+    if (bottomLabel) {
+      summary.setBottomLabel(bottomLabel);
+    }
+    card.addSection(CardService.newCardSection().addWidget(summary));
 
-    var showAddMore = canAddMoreRows_(result);
-    if (showAddMore) {
-      card.addSection(
-        CardService.newCardSection().addWidget(
-          filledButton_(
-            'Add more',
-            cardAction_('handleAddMoreRowsToSheet', options.hostApp ? { hostApp: options.hostApp } : null)
-          )
+    var actions = CardService.newCardSection();
+    var primaryRow = CardService.newButtonSet();
+    var hasPrimaryRow = false;
+    if (canAddMoreRows_(result)) {
+      primaryRow.addButton(
+        filledButton_(
+          'Add more',
+          cardAction_('handleAddMoreRowsToSheet', options.hostApp ? { hostApp: options.hostApp } : null)
         )
       );
-      card.addSection(
-        CardService.newCardSection().addWidget(
-          CardService.newTextButton()
-            .setText('Fetch all remaining rows')
-            .setOnClickAction(
-              cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
-            )
-        )
-      );
+      hasPrimaryRow = true;
     }
-
-    var primary = filledOpenUrlButton_(
-      result.usedActiveSpreadsheet ? 'Open spreadsheet' : 'Open in Sheets',
+    var openBtn = filledOpenUrlButton_(
+      result.usedActiveSpreadsheet ? 'Open sheet' : 'Open in Sheets',
       result.url
     );
-    if (primary) {
-      card.addSection(CardService.newCardSection().addWidget(primary));
+    if (openBtn) {
+      primaryRow.addButton(openBtn);
+      hasPrimaryRow = true;
+    }
+    if (hasPrimaryRow) {
+      actions.addWidget(primaryRow);
     }
 
-    var followUp = CardService.newCardSection();
-    followUp.addWidget(
+    var secondaryRow = CardService.newButtonSet();
+    var hasSecondaryRow = false;
+    if (canAddMoreRows_(result)) {
+      secondaryRow.addButton(
+        CardService.newTextButton()
+          .setText('Fetch all remaining')
+          .setOnClickAction(
+            cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
+          )
+      );
+      hasSecondaryRow = true;
+    }
+    secondaryRow.addButton(
       CardService.newTextButton()
-        .setText('Create another sheet')
-        .setOnClickAction(
-          cardAction_('onCreateSheetAction', options.hostApp ? { hostApp: options.hostApp } : null)
-        )
-    );
-    followUp.addWidget(
-      CardService.newTextButton()
-        .setText('Back to search')
+        .setText('New search')
         .setOnClickAction(
           cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
         )
     );
-    card.addSection(followUp);
+    hasSecondaryRow = true;
+    if (hasSecondaryRow) {
+      actions.addWidget(secondaryRow);
+    }
+    card.addSection(actions);
 
     return card.build();
   }
