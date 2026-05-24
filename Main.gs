@@ -294,6 +294,29 @@ function onMcpTools() {
   return HiEnergyCards.mcpTools(HiEnergyApi.listMcpTools());
 }
 
+function onReports() {
+  ensureAuthenticated_();
+  return HiEnergyCards.reports(HiEnergyApi.listMcpTools());
+}
+
+function handleRunAndExportMcpTool(e) {
+  ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var form = (e && e.formInput) || {};
+  var toolName = params.tool || '';
+  if (!toolName) {
+    return HiEnergyCards.error('Missing tool', 'No MCP tool was selected.');
+  }
+  var query = String(form.query || params.query || '').trim();
+  var args = buildMcpToolArgs_(toolName, query, params);
+  var result = HiEnergyApi.callMcpTool(toolName, args);
+  if (!result.ok) {
+    return HiEnergyCards.apiError(result);
+  }
+  HiEnergyMcpExport.cacheMcpToolResult(toolName, query, result);
+  return HiEnergyCards.sheetResult(HiEnergySheets.createFromMcpToolResult(toolName, query, result.body));
+}
+
 function handleMcpToolPrompt(e) {
   ensureAuthenticated_();
   var params = (e && e.parameters) || {};
@@ -445,7 +468,10 @@ function handleCreateSheet(e) {
     return HiEnergyCards.sheetResult(HiEnergySheets.exportDeals(query));
   }
   if (type === 'transactions') {
-    return HiEnergyCards.sheetResult(HiEnergySheets.exportTransactions(query, days));
+    var advertiserFilter = String(form.transactionAdvertiserId || '').trim();
+    return HiEnergyCards.sheetResult(
+      HiEnergySheets.exportTransactions(query, days, advertiserFilter)
+    );
   }
   if (type === 'advertiser_contacts') {
     return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(query));

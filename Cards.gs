@@ -401,6 +401,11 @@ var HiEnergyCards = (function () {
     }
     quickActions.addWidget(
       CardService.newTextButton()
+        .setText('Reports')
+        .setOnClickAction(cardAction_('onReports'))
+    );
+    quickActions.addWidget(
+      CardService.newTextButton()
         .setText('Browse MCP tools')
         .setOnClickAction(cardAction_('onMcpTools'))
     );
@@ -1302,18 +1307,106 @@ var HiEnergyCards = (function () {
         .addWidget(
           CardService.newTextInput()
             .setFieldName('query')
-            .setTitle('Input')
+            .setTitle('Input (optional)')
             .setHint('Search term, domain, advertiser id, or report goal')
         )
         .addWidget(
+          filledButton_(
+            exportLabel_('Run & export'),
+            CardService.newAction()
+              .setFunctionName('handleRunAndExportMcpTool')
+              .setParameters({ tool: toolName })
+          )
+        )
+        .addWidget(
           CardService.newTextButton()
-            .setText('Run tool')
+            .setText('Run only')
             .setOnClickAction(
               CardService.newAction()
                 .setFunctionName('handleMcpToolCall')
                 .setParameters({ tool: toolName })
             )
         )
+    );
+
+    return card.build();
+  }
+
+  function reportsCard_(result) {
+    if (!result.ok) {
+      return apiErrorCard_(result);
+    }
+
+    var tools = (result.body && result.body.tools) || [];
+    var reports = tools.filter(function (tool) {
+      var name = String(tool.name || '').toLowerCase();
+      var desc = String(tool.description || '').toLowerCase();
+      return /report|export|download|summary|metrics|insights|trend|forecast|leaderboard/.test(name) ||
+        /report|insights|metrics|leaderboard|summary/.test(desc);
+    });
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Reports', 'Download anything you have access to')
+    );
+
+    if (!reports.length) {
+      card.addSection(
+        sectionText_(
+          'No report-style tools detected on your MCP server. Open <b>MCP Tools</b> to browse the full list — any tool result can be exported to a Google Sheet.'
+        )
+      );
+      card.addSection(
+        CardService.newCardSection().addWidget(
+          CardService.newTextButton()
+            .setText('Browse all MCP tools')
+            .setOnClickAction(cardAction_('onMcpTools'))
+        )
+      );
+      return card.build();
+    }
+
+    var listSection = CardService.newCardSection().setHeader('Available reports');
+    reports.slice(0, HiEnergyConfig.mcpToolLimit).forEach(function (tool) {
+      var description = tool.description || 'Run this report';
+      listSection.addWidget(
+        CardService.newDecoratedText()
+          .setTopLabel(tool.name || 'report')
+          .setText(description)
+          .setWrapText(true)
+          .setButton(
+            CardService.newTextButton()
+              .setText(exportLabel_('Run & export'))
+              .setOnClickAction(
+                CardService.newAction()
+                  .setFunctionName('handleRunAndExportMcpTool')
+                  .setParameters({
+                    tool: String(tool.name || ''),
+                    description: description
+                  })
+              )
+          )
+      );
+      listSection.addWidget(
+        CardService.newTextButton()
+          .setText('Configure inputs')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleMcpToolPrompt')
+              .setParameters({
+                tool: String(tool.name || ''),
+                description: description
+              })
+          )
+      );
+    });
+    card.addSection(listSection);
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('All MCP tools')
+          .setOnClickAction(cardAction_('onMcpTools'))
+      )
     );
 
     return card.build();
@@ -1412,11 +1505,15 @@ var HiEnergyCards = (function () {
       CardService.newCardSection()
         .setHeader('Export')
         .addWidget(
+          filledButton_(
+            exportLabel_('Export to Google Sheet'),
+            cardAction_('handleExportMcpResultToSheet')
+          )
+        )
+        .addWidget(
           CardService.newTextButton()
-            .setText('Export to Google Sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleExportMcpResultToSheet')
-            )
+            .setText('Back to MCP tools')
+            .setOnClickAction(cardAction_('onMcpTools'))
         )
     );
     return card.build();
@@ -1520,12 +1617,18 @@ var HiEnergyCards = (function () {
       .addItem('Last 60 days', '60', false)
       .addItem('Last 90 days', '90', false);
 
+    var advertiserIdInput = CardService.newTextInput()
+      .setFieldName('transactionAdvertiserId')
+      .setTitle('Advertiser id or slug (transactions, optional)')
+      .setHint('Filter transactions to one advertiser');
+
     card.addSection(
       CardService.newCardSection()
         .addWidget(typeSelect)
         .addWidget(queryInput)
         .addWidget(advertiserModeSelect)
         .addWidget(daysSelect)
+        .addWidget(advertiserIdInput)
         .addWidget(filledButton_('Create sheet', cardAction_('handleCreateSheet')))
     );
 
@@ -1811,6 +1914,7 @@ var HiEnergyCards = (function () {
     mcpTools: mcpToolsCard_,
     mcpToolPrompt: mcpToolPromptCard_,
     mcpToolResult: mcpToolResultCard_,
+    reports: reportsCard_,
     createSheet: createSheetCard_,
     sheetResult: sheetResultCard_,
     draftEmail: draftEmailPromptCard_,

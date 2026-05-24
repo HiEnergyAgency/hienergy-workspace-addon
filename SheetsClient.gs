@@ -351,14 +351,16 @@ var HiEnergySheets = (function () {
     return createFromApiResult_('Deals', cached.query, 'search_deals', cached.body);
   }
 
-  function exportTransactions_(query, days) {
+  function exportTransactions_(query, days, advertiserId) {
     ensureAuthenticatedForExport_();
 
     var normalized = String(query || '').trim();
+    var advertiser = String(advertiserId || '').trim();
     var dayRange = parseInt(days, 10) || 30;
     var result = paginateRows_(function (page, limit) {
       return HiEnergyApi.searchTransactions({
         q: normalized || undefined,
+        advertiserId: advertiser || undefined,
         days: dayRange,
         limit: limit,
         page: page

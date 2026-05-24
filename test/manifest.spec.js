@@ -47,7 +47,7 @@ describe('appsscript.json manifest', function () {
     const labels = manifest.addOns.common.universalActions.map(function (action) {
       return action.label;
     });
-    expect(labels).toEqual(['Search', 'Settings', 'MCP Tools', 'Create Sheet', 'Draft Email']);
+    expect(labels).toEqual(['Search', 'Settings', 'Reports', 'MCP Tools', 'Create Sheet', 'Draft Email']);
   });
 });
 

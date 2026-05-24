@@ -63,6 +63,10 @@
           "runFunction": "onSettings"
         },
         {
+          "label": "Reports",
+          "runFunction": "onReports"
+        },
+        {
           "label": "MCP Tools",
           "runFunction": "onMcpTools"
         },
