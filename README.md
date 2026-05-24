@@ -108,14 +108,14 @@ The add-on manifest (`appsscript.json`) uses the same name, logo, and colors for
 
 ## Features
 
-- Search advertisers, deals, and transactions via MCP universal search
-- Browse and run MCP tools (reports, contacts, user search, and more)
-- **Create Sheet** — export MCP search results (advertisers, deals, transactions) to a new Google Spreadsheet
-- **Draft Email** — compose a Gmail draft from the sidebar (reply to open message when in Gmail)
-- Gmail contextual sidebar: sender info, contact match, recent domain messages
-- Google Contacts lookup and search
-- Gmail thread view and message search
-- Advertiser detail, deals, and transactions drill-down
+- **Search** advertisers, deals, transactions, contacts, and (in Gmail) messages via MCP universal search; example chips give first-time users a one-tap starting point
+- **Reports** — dedicated universal action that filters the MCP tool list to report/insight/export tools and runs them straight into a Google Sheet
+- **Create Sheet** — unified form to export Advertisers, Deals, Transactions, Contacts, Google contacts, or Everything. Walks the API page by page and writes **up to 500 rows** per type; transactions accept an optional advertiser id/slug filter and 30/60/90-day range. When opened in Sheets, results are added as tabs in the active spreadsheet; otherwise a new one is created.
+- **Draft Email** — every contact row (in search results, contacts cards, and lookup cards) has a one-tap **Draft** button that opens a prefilled Gmail draft. Also compose drafts from advertiser or domain context.
+- **MCP Tools** — browse and invoke any tool from `tools/list`; every result has a prominent **Export to Google Sheet** button
+- **Gmail context** — sender info, Google Contacts match, recent domain messages, and advertiser lookup on every open email
+- **Host-aware UI** — adapts copy, scopes, and export targets for Gmail, Sheets, Slides, Docs, Drive, and Calendar
+- **Two ways to connect** — Auth0 OAuth (recommended) or per-user API key, with backend URL overrides in Settings
 - Per-user Auth0 tokens via the [OAuth2 Apps Script library](https://github.com/googleworkspace/apps-script-oauth2)
 
 ## Project structure
