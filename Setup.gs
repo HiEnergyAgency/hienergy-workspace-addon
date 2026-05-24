@@ -7,6 +7,7 @@ function configureAuth0ScriptProperties() {
     AUTH0_DOMAIN: 'YOUR_TENANT.us.auth0.com',
     AUTH0_CLIENT_ID: 'YOUR_AUTH0_CLIENT_ID',
     AUTH0_CLIENT_SECRET: 'YOUR_AUTH0_CLIENT_SECRET',
-    AUTH0_AUDIENCE: 'https://api.hienergyrocket.com/mcp'
+    AUTH0_AUDIENCE: 'https://api.hienergyrocket.com/mcp',
+    HIENERGY_MCP_URL: 'https://app.hienergy.ai/mcp'
   });
 }

@@ -86,8 +86,35 @@ var HiEnergyCards = (function () {
 
     card.addSection(advanced);
     card.addSection(
+      CardService.newCardSection()
+        .setHeader('MCP server')
+        .addWidget(
+          CardService.newDecoratedText()
+            .setTopLabel('Backend')
+            .setText('Hi Energy MCP')
+            .setBottomLabel(HiEnergyApi.getMcpUrl())
+            .setWrapText(true)
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Browse MCP tools')
+            .setOnClickAction(
+              CardService.newAction().setFunctionName('onMcpTools')
+            )
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('MCP documentation')
+            .setOpenLink(
+              CardService.newOpenLink()
+                .setUrl(HiEnergyConfig.authDocsUrl)
+                .setOpenAs(CardService.OpenAs.FULL_SIZE)
+            )
+        )
+    );
+    card.addSection(
       sectionText_(
-        'Primary sign-in uses Auth0 OAuth (<b>Authorization: Bearer</b>). Tokens are stored per Google user. Optional API keys are a fallback for automation or local testing.'
+        'All Hi Energy requests go through the MCP server (<b>POST /mcp</b>) using Auth0 bearer tokens or an API key. Tokens are stored per Google user.'
       )
     );
 
@@ -146,6 +173,8 @@ var HiEnergyCards = (function () {
           .addItem('Advertisers', 'advertisers', false)
           .addItem('Deals', 'deals', false)
           .addItem('Transactions', 'transactions', false)
+          .addItem('Contacts', 'contacts', false)
+          .addItem('Messages', 'messages', false)
       )
       .addWidget(
         CardService.newTextButton()
@@ -420,14 +449,203 @@ var HiEnergyCards = (function () {
     });
   }
 
-  function gmailContextCard_(domain, hint) {
+  function formatDate_(date) {
+    if (!date) {
+      return '';
+    }
+    return Utilities.formatDate(new Date(date), Session.getScriptTimeZone(), 'MMM d, yyyy');
+  }
+
+  function contactWidget_(contact) {
+    var subtitle = [contact.email, contact.organization, contact.phone].filter(Boolean).join(' · ');
+    return CardService.newDecoratedText()
+      .setTopLabel('Contact')
+      .setText(contact.name || contact.email || 'Unknown contact')
+      .setBottomLabel(subtitle)
+      .setWrapText(true);
+  }
+
+  function messageWidget_(message, showThreadButton) {
+    var subtitle = [message.senderName || message.from, formatDate_(message.date)].filter(Boolean).join(' · ');
+    var widget = CardService.newDecoratedText()
+      .setTopLabel('Message')
+      .setText(message.subject || '(No subject)')
+      .setBottomLabel(subtitle)
+      .setWrapText(true);
+
+    if (showThreadButton && message.id) {
+      widget.setButton(
+        CardService.newTextButton()
+          .setText('View thread')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleViewThread')
+              .setParameters({ messageId: String(message.id) })
+          )
+      );
+    }
+
+    return widget;
+  }
+
+  function contactsCard_(query, result) {
+    if (!result.ok) {
+      return errorCard_('Contacts error', result.message || result.error || 'Could not search contacts.');
+    }
+
+    var contacts = result.contacts || [];
     var card = CardService.newCardBuilder().setHeader(
-      header_('Email context', hint || 'Lookup sender domain')
+      header_('Contacts', '"' + query + '"')
     );
+
+    if (!contacts.length) {
+      card.addSection(sectionText_('No contacts matched <b>' + query + '</b>.'));
+    } else {
+      var section = CardService.newCardSection();
+      contacts.slice(0, HiEnergyConfig.contactLimit).forEach(function (contact) {
+        section.addWidget(contactWidget_(contact));
+      });
+      card.addSection(section);
+    }
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('New search')
+          .setOnClickAction(CardService.newAction().setFunctionName('onSearchAction'))
+      )
+    );
+
+    return card.build();
+  }
+
+  function contactLookupCard_(email, result) {
+    if (!result.ok) {
+      return errorCard_('Contacts error', result.message || result.error || 'Could not look up contact.');
+    }
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Contact lookup', email)
+    );
+
+    if (!result.contact) {
+      card.addSection(sectionText_('No Google contact matched <b>' + email + '</b>.'));
+    } else {
+      card.addSection(CardService.newCardSection().addWidget(contactWidget_(result.contact)));
+    }
+
+    return card.build();
+  }
+
+  function messagesCard_(title, result) {
+    if (!result.ok) {
+      return errorCard_('Gmail error', result.message || result.error || 'Could not read messages.');
+    }
+
+    var messages = result.messages || [];
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Messages', title)
+    );
+
+    if (!messages.length) {
+      card.addSection(sectionText_('No messages found.'));
+    } else {
+      var section = CardService.newCardSection();
+      messages.slice(0, HiEnergyConfig.messageLimit).forEach(function (message) {
+        section.addWidget(messageWidget_(message, true));
+      });
+      card.addSection(section);
+    }
+
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('New search')
+          .setOnClickAction(CardService.newAction().setFunctionName('onSearchAction'))
+      )
+    );
+
+    return card.build();
+  }
+
+  function gmailContextCard_(context, contactResult, messagesResult) {
+    var domain = context.domain;
+    var message = context.message || {};
+    var card = CardService.newCardBuilder().setHeader(
+      header_('Email context', 'Look up programs for this sender')
+    );
+
+    var senderSection = CardService.newCardSection().setHeader('Sender');
+    senderSection.addWidget(
+      CardService.newDecoratedText()
+        .setText(context.senderName || message.from || domain)
+        .setBottomLabel([context.senderEmail, domain].filter(Boolean).join(' · '))
+        .setWrapText(true)
+    );
+
+    if (context.senderEmail) {
+      senderSection.addWidget(
+        CardService.newTextButton()
+          .setText('Look up contact')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleLookupContact')
+              .setParameters({ email: context.senderEmail })
+          )
+      );
+    }
+
+    if (message.subject) {
+      senderSection.addWidget(
+        CardService.newDecoratedText()
+          .setTopLabel('Subject')
+          .setText(message.subject)
+          .setWrapText(true)
+      );
+    }
+
+    if (message.id) {
+      senderSection.addWidget(
+        CardService.newTextButton()
+          .setText('View thread')
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleViewThread')
+              .setParameters({ messageId: String(message.id) })
+          )
+      );
+    }
+
+    card.addSection(senderSection);
+
+    if (contactResult && contactResult.ok && contactResult.contact) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Google contact')
+          .addWidget(contactWidget_(contactResult.contact))
+      );
+    }
+
+    if (messagesResult && messagesResult.ok && messagesResult.messages && messagesResult.messages.length) {
+      var messagesSection = CardService.newCardSection().setHeader('Recent messages from domain');
+      messagesResult.messages.forEach(function (item) {
+        messagesSection.addWidget(messageWidget_(item, true));
+      });
+      messagesSection.addWidget(
+        CardService.newTextButton()
+          .setText('View all from ' + domain)
+          .setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('handleViewDomainMessages')
+              .setParameters({ domain: domain })
+          )
+      );
+      card.addSection(messagesSection);
+    }
 
     card.addSection(
       CardService.newCardSection()
-        .addWidget(CardService.newDecoratedText().setText(domain).setTopLabel('Domain'))
+        .setHeader('Hi Energy')
         .addWidget(
           CardService.newTextButton()
             .setText('Find advertiser')
@@ -451,6 +669,146 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
+  function summarizeJson_(value) {
+    try {
+      var text = JSON.stringify(value, null, 2);
+      if (text.length > 1200) {
+        return text.substring(0, 1200) + '…';
+      }
+      return text;
+    } catch (err) {
+      return String(value);
+    }
+  }
+
+  function mcpToolsCard_(result) {
+    if (!result.ok) {
+      return apiErrorCard_(result);
+    }
+
+    var tools = (result.body && result.body.tools) || [];
+    var card = CardService.newCardBuilder().setHeader(
+      header_('MCP Tools', 'Curated Hi Energy server tools')
+    );
+
+    if (!tools.length) {
+      card.addSection(sectionText_('No MCP tools were returned.'));
+      return card.build();
+    }
+
+    var section = CardService.newCardSection().setHeader('Available tools');
+    tools.slice(0, HiEnergyConfig.mcpToolLimit).forEach(function (tool) {
+      var description = tool.description || 'Run this MCP tool';
+      section.addWidget(
+        CardService.newDecoratedText()
+          .setTopLabel(tool.name || 'tool')
+          .setText(description)
+          .setWrapText(true)
+          .setButton(
+            CardService.newTextButton()
+              .setText('Use')
+              .setOnClickAction(
+                CardService.newAction()
+                  .setFunctionName('handleMcpToolPrompt')
+                  .setParameters({
+                    tool: String(tool.name || ''),
+                    description: description
+                  })
+              )
+          )
+      );
+    });
+
+    card.addSection(section);
+    card.addSection(
+      sectionText_('Search, advertiser lookup, and reports in this add-on already call these tools through the MCP server.')
+    );
+
+    return card.build();
+  }
+
+  function mcpToolPromptCard_(toolName, description) {
+    var card = CardService.newCardBuilder().setHeader(
+      header_('MCP Tool', toolName)
+    );
+
+    if (description) {
+      card.addSection(sectionText_(description));
+    }
+
+    card.addSection(
+      CardService.newCardSection()
+        .addWidget(
+          CardService.newTextInput()
+            .setFieldName('query')
+            .setTitle('Input')
+            .setHint('Search term, domain, advertiser id, or report goal')
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Run tool')
+            .setOnClickAction(
+              CardService.newAction()
+                .setFunctionName('handleMcpToolCall')
+                .setParameters({ tool: toolName })
+            )
+        )
+    );
+
+    return card.build();
+  }
+
+  function mcpToolResultCard_(toolName, query, result) {
+    if (!result.ok) {
+      return apiErrorCard_(result);
+    }
+
+    if (toolName === 'universal_search' || toolName === 'search_advertisers') {
+      return searchResultsCard_(query || toolName, result);
+    }
+    if (toolName === 'search_advertisers_by_domain' || toolName === 'search_domains') {
+      return searchResultsCard_(query || toolName, {
+        ok: true,
+        body: {
+          results: {
+            advertisers: {
+              data: (result.body && result.body.data) || result.body || [],
+              total: ((result.body && result.body.data) || result.body || []).length
+            }
+          }
+        }
+      });
+    }
+    if (toolName === 'get_advertiser') {
+      return advertiserCard_(result);
+    }
+    if (toolName === 'search_deals') {
+      return dealsCard_(query || 'Deals', result);
+    }
+    if (toolName === 'search_transactions') {
+      return transactionsCard_(query || 'Transactions', result);
+    }
+    if (toolName === 'get_advertiser_contacts') {
+      var rows = (result.body && result.body.data) || result.body || [];
+      if (!Array.isArray(rows)) {
+        rows = [];
+      }
+      return listCard_('Advertiser contacts', query || toolName, rows, function (row) {
+        var attrs = row.attributes || row;
+        return CardService.newDecoratedText()
+          .setText([attrs.given_name, attrs.family_name].filter(Boolean).join(' ') || attrs.email || row.id)
+          .setBottomLabel([attrs.email, attrs.job_title, attrs.phone].filter(Boolean).join(' · '))
+          .setWrapText(true);
+      });
+    }
+
+    var card = CardService.newCardBuilder().setHeader(
+      header_('MCP result', toolName)
+    );
+    card.addSection(sectionText_('<pre>' + summarizeJson_(result.body) + '</pre>'));
+    return card.build();
+  }
+
   return {
     connect: connectCard_,
     settings: settingsCard_,
@@ -459,7 +817,13 @@ var HiEnergyCards = (function () {
     advertiser: advertiserCard_,
     deals: dealsCard_,
     transactions: transactionsCard_,
+    contacts: contactsCard_,
+    contactLookup: contactLookupCard_,
+    messages: messagesCard_,
     gmailContext: gmailContextCard_,
+    mcpTools: mcpToolsCard_,
+    mcpToolPrompt: mcpToolPromptCard_,
+    mcpToolResult: mcpToolResultCard_,
     error: errorCard_
   };
 })();

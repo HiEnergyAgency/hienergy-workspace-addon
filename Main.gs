@@ -46,7 +46,6 @@ function handleDisconnectSettings() {
 }
 
 function handleSearch(e) {
-  ensureAuthenticated_();
   var form = (e && e.formInput) || {};
   var query = String(form.query || '').trim();
   var scope = String(form.scope || 'all');
@@ -54,6 +53,16 @@ function handleSearch(e) {
   if (!query) {
     return HiEnergyCards.error('Missing query', 'Enter a brand, domain, or deal keyword to search.');
   }
+
+  if (scope === 'contacts') {
+    return HiEnergyCards.contacts(query, HiEnergyContacts.search(query));
+  }
+
+  if (scope === 'messages') {
+    return HiEnergyCards.messages('Search: ' + query, HiEnergyGmail.searchMessages(query));
+  }
+
+  ensureAuthenticated_();
 
   if (scope === 'transactions') {
     var txnResult = HiEnergyApi.transactions({ q: query });
@@ -131,17 +140,101 @@ function handleAdvertiserTransactions(e) {
   return HiEnergyCards.transactions(name, HiEnergyApi.transactions({ advertiserId: id }));
 }
 
-function onGmailMessageOpen(e) {
-  if (!HiEnergyApi.hasAuth()) {
-    return HiEnergyCards.connect();
+function handleViewThread(e) {
+  var params = (e && e.parameters) || {};
+  var messageId = params.messageId || '';
+  if (!messageId) {
+    return HiEnergyCards.error('Missing message', 'No message id was provided.');
   }
+  return HiEnergyCards.messages('Thread', HiEnergyGmail.getThreadMessages(messageId));
+}
 
-  var domain = extractDomainFromGmailEvent_(e);
+function handleViewDomainMessages(e) {
+  var params = (e && e.parameters) || {};
+  var domain = params.domain || '';
   if (!domain) {
-    return HiEnergyCards.search();
+    return HiEnergyCards.error('Missing domain', 'No domain was provided.');
+  }
+  return HiEnergyCards.messages('Messages from ' + domain, HiEnergyGmail.searchByDomain(domain));
+}
+
+function handleLookupContact(e) {
+  var params = (e && e.parameters) || {};
+  var email = params.email || '';
+  if (!email) {
+    return HiEnergyCards.error('Missing email', 'No email address was provided.');
+  }
+  return HiEnergyCards.contactLookup(email, HiEnergyContacts.lookupByEmail(email));
+}
+
+function onMcpTools() {
+  ensureAuthenticated_();
+  return HiEnergyCards.mcpTools(HiEnergyApi.listMcpTools());
+}
+
+function handleMcpToolPrompt(e) {
+  ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var toolName = params.tool || '';
+  if (!toolName) {
+    return HiEnergyCards.error('Missing tool', 'No MCP tool was selected.');
+  }
+  return HiEnergyCards.mcpToolPrompt(toolName, params.description || '');
+}
+
+function handleMcpToolCall(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var params = (e && e.parameters) || {};
+  var toolName = params.tool || '';
+  var query = String(form.query || '').trim();
+
+  if (!toolName) {
+    return HiEnergyCards.error('Missing tool', 'No MCP tool was selected.');
   }
 
-  return HiEnergyCards.gmailContext(domain, 'Look up programs for this sender');
+  var args = buildMcpToolArgs_(toolName, query, params);
+  return HiEnergyCards.mcpToolResult(toolName, query, HiEnergyApi.callMcpTool(toolName, args));
+}
+
+function buildMcpToolArgs_(toolName, query, params) {
+  if (toolName === 'search_advertisers_by_domain' || toolName === 'search_domains') {
+    return { domain: query || params.domain || '' };
+  }
+  if (toolName === 'get_advertiser') {
+    return { id: query || params.id || '' };
+  }
+  if (toolName === 'get_advertiser_contacts') {
+    return { advertiser: query || params.advertiser || '' };
+  }
+  if (toolName === 'recommend_report') {
+    return { goal: query || params.goal || '' };
+  }
+  if (toolName === 'search_deals' || toolName === 'search_transactions' || toolName === 'search_users') {
+    return { q: query, limit: HiEnergyConfig.perTypeLimit };
+  }
+  if (toolName === 'universal_search') {
+    return { q: query, per_type_limit: HiEnergyConfig.perTypeLimit };
+  }
+  if (toolName === 'search_advertisers') {
+    return { name: query, limit: HiEnergyConfig.perTypeLimit };
+  }
+  return { q: query };
+}
+
+function onGmailMessageOpen(e) {
+  var context = HiEnergyGmail.getContextFromEvent(e);
+  if (!context || !context.domain) {
+    return HiEnergyApi.hasAuth() ? HiEnergyCards.search() : HiEnergyCards.connect();
+  }
+
+  var contactResult = context.senderEmail
+    ? HiEnergyContacts.lookupByEmail(context.senderEmail)
+    : { ok: true, contact: null };
+
+  var messagesResult = HiEnergyGmail.searchByDomain(context.domain, 3);
+
+  return HiEnergyCards.gmailContext(context, contactResult, messagesResult);
 }
 
 function ensureAuthenticatedHome_() {
@@ -161,35 +254,4 @@ function ensureAuthenticated_() {
   if (HiEnergyAuth.isConfigured()) {
     HiEnergyAuth.requireAuthorization();
   }
-}
-
-function extractDomainFromGmailEvent_(e) {
-  try {
-    var accessToken = e.gmail.accessToken;
-    var messageId = e.gmail.messageId;
-    if (!accessToken || !messageId) {
-      return null;
-    }
-
-    var message = GmailApp.getMessageById(messageId);
-    if (!message) {
-      return null;
-    }
-
-    var from = message.getFrom() || '';
-    var match = from.match(/@([\w.-]+\.\w+)/);
-    if (match && match[1]) {
-      return match[1].toLowerCase();
-    }
-
-    var body = message.getPlainBody() || '';
-    var urlMatch = body.match(/https?:\/\/(?:www\.)?([\w.-]+\.\w+)/i);
-    if (urlMatch && urlMatch[1]) {
-      return urlMatch[1].toLowerCase();
-    }
-  } catch (err) {
-    console.warn('Gmail context parse failed: ' + err);
-  }
-
-  return null;
 }

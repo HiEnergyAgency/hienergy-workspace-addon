@@ -16,7 +16,16 @@
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/userinfo.email",
     "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
-    "https://www.googleapis.com/auth/gmail.addons.execute"
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/contacts.readonly"
+  ],
+  "enabledAdvancedServices": [
+    {
+      "userSymbol": "People",
+      "version": "v1",
+      "serviceId": "peopleapi"
+    }
   ],
   "addOns": {
     "common": {
@@ -39,6 +48,10 @@
         {
           "label": "Settings",
           "runFunction": "onSettings"
+        },
+        {
+          "label": "MCP Tools",
+          "runFunction": "onMcpTools"
         }
       ]
     },

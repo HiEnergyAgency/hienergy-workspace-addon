@@ -82,6 +82,7 @@ var HiEnergyAuth = (function () {
       return;
     }
     getService_().reset();
+    HiEnergyMcp.resetSession();
   }
 
   function handleCallback_(request) {
