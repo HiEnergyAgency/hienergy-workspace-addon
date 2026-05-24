@@ -241,6 +241,58 @@ describe('HiEnergyCards search results', function () {
     expect(actionFunctionNames()).toContain('handleOpenAdvertiser');
   });
 
+  it('shows the contact email below the contact name', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          contacts: {
+            data: [
+              {
+                id: '11',
+                given_name: 'Sydney',
+                family_name: 'Gaul',
+                email: 'sydney@example.com',
+                job_title: 'Affiliate Manager'
+              }
+            ],
+            total: 1
+          }
+        }
+      }
+    });
+    const bottomLabels = captured
+      .filter(function (entry) {
+        return entry.method === 'setBottomLabel';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(bottomLabels.some(function (l) { return l && l.indexOf('sydney@example.com') === 0; })).toBe(true);
+  });
+
+  it('falls back to email as the contact name when no name is set', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          contacts: {
+            data: [{ id: '12', email: 'unnamed@example.com' }],
+            total: 1
+          }
+        }
+      }
+    });
+    const texts = captured
+      .filter(function (entry) {
+        return entry.method === 'setText';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(texts).toContain('unnamed@example.com');
+  });
+
   it('shows status and publisher in the advertiser top label', function () {
     ctx.HiEnergyCards.searchResults('alo', {
       ok: true,

@@ -462,6 +462,11 @@ var HiEnergyCards = (function () {
     return String((record && record.id) || (attrs && attrs.id) || '').trim();
   }
 
+  function personName_(attrs) {
+    var combined = [attrs.given_name, attrs.family_name].filter(Boolean).join(' ').trim();
+    return combined || attrs.full_name || attrs.name || attrs.display_name || '';
+  }
+
   function labelForRecord_(type, record) {
     if (!record) {
       return 'Unknown';
@@ -477,6 +482,9 @@ var HiEnergyCards = (function () {
     if (type === 'transactions') {
       return (attrs.advertiser_name || attrs.advertiser_id || 'Transaction') +
         ' · ' + (attrs.commission_amount || attrs.commission || '');
+    }
+    if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
+      return personName_(attrs) || attrs.email || id || 'Contact';
     }
     return attrs.name || attrs.title || attrs.display_name || id || 'Result';
   }
@@ -512,6 +520,11 @@ var HiEnergyCards = (function () {
     }
     if (type === 'transactions') {
       return [attrs.network_name, attrs.transaction_date, attrs.status].filter(Boolean).join(' · ');
+    }
+    if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
+      return [attrs.email, attrs.job_title, attrs.advertiser_name, attrs.organization, attrs.phone]
+        .filter(Boolean)
+        .join(' · ');
     }
     return '';
   }
