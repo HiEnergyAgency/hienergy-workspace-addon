@@ -123,7 +123,6 @@ var HiEnergyMcpExport = (function () {
         a.domain || '',
         a.network_name || '',
         first_(a.program_status, a.status, a.advertiser_status),
-        a.signup_url || a.join_url || a.application_url || '',
         a.url || ''
       ];
     });
@@ -303,7 +302,6 @@ var HiEnergyMcpExport = (function () {
         'Domain',
         'Network',
         'Status',
-        'Signup URL',
         'External URL'
       ],
       rows: advertiserRows_
