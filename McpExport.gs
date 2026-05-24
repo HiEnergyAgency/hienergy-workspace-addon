@@ -44,6 +44,71 @@ var HiEnergyMcpExport = (function () {
     );
   }
 
+  function advertiserAdminUrl_(slug) {
+    var clean = String(slug || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.advertiserAdminPath || '/admin/advertisers/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function contactAdminUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.contactAdminPath || '/admin/contacts/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function transactionAdminUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.transactionAdminPath || '/admin/transactions/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function networkAdminUrl_(name) {
+    var clean = String(name || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.networkAdminPath || '/admin/networks/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function advertiserCell_(slugOrId, label) {
+    var clean = String(slugOrId || '').trim();
+    var text = String(label || clean || '').trim();
+    if (!clean) {
+      return text;
+    }
+    return hyperlink_(advertiserAdminUrl_(clean), text || clean);
+  }
+
+  function networkCell_(name) {
+    var clean = String(name || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return hyperlink_(networkAdminUrl_(clean), clean);
+  }
+
   function publisherAdminUrl_(id) {
     var clean = String(id || '').trim();
     if (!clean) {
@@ -141,10 +206,10 @@ var HiEnergyMcpExport = (function () {
       return [
         hyperlink_(advertiserHiEnergyUrl_(slugOrId), name),
         hyperlink_(advertiserContactsAdminUrl_(slugOrId), 'Contacts'),
-        name,
+        advertiserCell_(slugOrId, name),
         publisherCell_(a),
-        a.domain || '',
-        a.network_name || '',
+        a.domain ? hyperlink_(advertiserHiEnergyUrl_(slugOrId), a.domain) : '',
+        networkCell_(a.network_name),
         first_(a.program_status, a.status, a.advertiser_status),
         a.url || '',
         rawJson_(row)
@@ -158,14 +223,15 @@ var HiEnergyMcpExport = (function () {
       var id = idOf_(row, a);
       var title = first_(a.title, a.name, id);
       var advertiserName = a.advertiser_name || '';
+      var advSlug = a.advertiser_slug || a.advertiser_id;
       return [
         hyperlink_(dealAdminUrl_(id), title),
         hyperlink_(
-          advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
-          advertiserName || a.advertiser_slug || a.advertiser_id
+          advertiserHiEnergyUrl_(advSlug),
+          advertiserName || advSlug
         ),
-        title,
-        advertiserName,
+        hyperlink_(dealAdminUrl_(id), title),
+        advertiserCell_(advSlug, advertiserName || advSlug),
         first_(a.deal_type, a.type, a.category),
         first_(a.description, a.summary),
         first_(a.code, a.coupon_code, a.promo_code),
@@ -173,7 +239,7 @@ var HiEnergyMcpExport = (function () {
         a.start_date || a.starts_at || '',
         a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
-        a.network_name || '',
+        networkCell_(a.network_name),
         a.url || a.landing_url || '',
         rawJson_(row)
       ];
@@ -185,19 +251,19 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       var advertiserName = first_(a.advertiser_name, a.advertiser_id);
+      var advSlug = a.advertiser_slug || a.advertiser_id;
+      var orderId = first_(a.order_id, a.transaction_id);
+      var txnId = id || orderId;
       return [
-        hyperlink_(
-          advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
-          advertiserName
-        ),
-        advertiserName,
+        hyperlink_(advertiserHiEnergyUrl_(advSlug), advertiserName),
+        advertiserCell_(advSlug, advertiserName),
         publisherCell_(a),
         first_(a.commission_amount, a.commission),
         first_(a.sale_amount, a.amount, a.order_value),
-        a.network_name || '',
+        networkCell_(a.network_name),
         a.transaction_date || a.event_date || a.created_at || '',
         a.status || '',
-        first_(a.order_id, a.transaction_id),
+        txnId ? hyperlink_(transactionAdminUrl_(txnId), orderId || txnId) : (orderId || ''),
         rawJson_(row)
       ];
     });
@@ -297,20 +363,20 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       var company = contactAdvertiserCompany_(a);
+      var advSlug = a.advertiser_slug || a.advertiser_id;
+      var fullName = contactFullName_(a, id);
+      var linkedin = linkedinProfile_(a);
       return [
-        hyperlink_(
-          advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
-          company || a.advertiser_slug || a.advertiser_id
-        ),
-        company,
-        contactFullName_(a, id),
+        hyperlink_(advertiserHiEnergyUrl_(advSlug), company || advSlug),
+        advertiserCell_(advSlug, company || advSlug),
+        id ? hyperlink_(contactAdminUrl_(id), fullName) : fullName,
         contactGivenName_(a),
         contactFamilyName_(a),
         a.email || '',
         a.job_title || a.title || '',
         a.phone || '',
-        linkedinProfile_(a),
-        id,
+        linkedin ? hyperlink_(linkedin, linkedin) : '',
+        id ? hyperlink_(contactAdminUrl_(id), id) : '',
         rawJson_(row)
       ];
     });
@@ -461,16 +527,35 @@ var HiEnergyMcpExport = (function () {
     if (!company || !tables || !tables.length) {
       return;
     }
+    var lower = company.toLowerCase();
     tables.forEach(function (table) {
       if (!table.rows || table.headers[1] !== 'Advertiser company') {
         return;
       }
       table.rows.forEach(function (row) {
-        if (!row[1]) {
-          row[1] = company;
+        var cell = row[1];
+        var label = labelFromCell_(cell);
+        if (!label || label.toLowerCase() === lower || label === '') {
+          var url = urlFromHyperlinkCell_(cell);
+          row[1] = url ? hyperlink_(url, company) : company;
         }
       });
     });
+  }
+
+  function urlFromHyperlinkCell_(cell) {
+    var str = String(cell == null ? '' : cell);
+    var match = str.match(/^=HYPERLINK\("([^"]+)"/);
+    return match ? match[1] : '';
+  }
+
+  function labelFromCell_(cell) {
+    var str = String(cell == null ? '' : cell);
+    var match = str.match(/^=HYPERLINK\("[^"]+","((?:[^"\\]|\\.)*)"\)$/);
+    if (match) {
+      return match[1].replace(/""/g, '"');
+    }
+    return str;
   }
 
   function tablesFromContactsBody_(body, options) {
