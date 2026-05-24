@@ -6,26 +6,26 @@ var HiEnergySheets = (function () {
       .substring(0, 100) || 'Data';
   }
 
-  var MAX_CELL_CHARS_ = 49500;
+  var MAX_CELL_CHARS_ = 45000;
+  var CELL_TRUNCATION_MARK_ = '... [truncated]';
+
+  function clampString_(str) {
+    if (str.length <= MAX_CELL_CHARS_) {
+      return str;
+    }
+    return str.substring(0, MAX_CELL_CHARS_ - CELL_TRUNCATION_MARK_.length) +
+      CELL_TRUNCATION_MARK_;
+  }
 
   function clampCell_(value) {
     if (value === null || value === undefined) {
       return '';
     }
-    if (typeof value === 'string') {
-      if (value.length > MAX_CELL_CHARS_) {
-        return value.substring(0, MAX_CELL_CHARS_ - 1) + '…';
-      }
-      return value;
-    }
     if (typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) {
       return value;
     }
-    var str = String(value);
-    if (str.length > MAX_CELL_CHARS_) {
-      return str.substring(0, MAX_CELL_CHARS_ - 1) + '…';
-    }
-    return str;
+    var str = typeof value === 'string' ? value : String(value);
+    return clampString_(str);
   }
 
   function clampRows_(rows, columnCount) {
@@ -39,13 +39,14 @@ var HiEnergySheets = (function () {
   }
 
   function writeTable_(sheet, headers, rows) {
-    var safeRows = clampRows_(rows, headers.length);
-    var values = [headers].concat(safeRows);
+    var safeHeaders = (headers || []).map(clampCell_);
+    var safeRows = clampRows_(rows, safeHeaders.length);
+    var values = [safeHeaders].concat(safeRows);
     if (!values.length) {
       return 0;
     }
-    sheet.getRange(1, 1, values.length, headers.length).setValues(values);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold');
+    sheet.getRange(1, 1, values.length, safeHeaders.length).setValues(values);
+    sheet.getRange(1, 1, 1, safeHeaders.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
     return values.length - 1;
   }
