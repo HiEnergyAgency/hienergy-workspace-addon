@@ -595,6 +595,37 @@ function handleDraftEmailFromContext(e) {
   });
 }
 
+function handleDraftEmailToContact(e) {
+  ensureAuthenticated_();
+  var hostApp = resolveHostApp_(e);
+  if (hostApp && !isGmailHost_(hostApp)) {
+    return HiEnergyCards.error(
+      'Gmail drafts',
+      'Drafts open in Gmail. Open this add-on in Gmail to email this contact.'
+    );
+  }
+
+  var params = (e && e.parameters) || {};
+  var email = String(params.email || '').trim();
+  if (!email) {
+    return HiEnergyCards.error('Missing email', 'This contact has no email address on file.');
+  }
+
+  var prepared = HiEnergyGmailDrafts.prepareFromContact({
+    email: email,
+    name: params.name || '',
+    advertiserId: params.advertiserId || '',
+    advertiserName: params.advertiserName || '',
+    senderName: ''
+  });
+
+  if (!prepared.ok) {
+    return HiEnergyCards.error('Draft failed', prepared.message || prepared.error || 'Could not prepare draft.');
+  }
+
+  return HiEnergyCards.draftEmailForm(prepared.draft, {});
+}
+
 function handleDraftEmailFromAdvertiser(e) {
   ensureAuthenticated_();
   var params = (e && e.parameters) || {};

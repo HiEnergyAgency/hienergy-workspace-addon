@@ -695,7 +695,24 @@ var HiEnergyCards = (function () {
             .setBottomLabel(subtitleText)
             .setWrapText(true);
 
-          if (type === 'advertisers') {
+          if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
+            var cAttrs = attrsForRecord_(row);
+            var contactEmail = String(cAttrs.email || '').trim();
+            if (contactEmail) {
+              decorator.setButton(
+                CardService.newTextButton()
+                  .setText('Draft')
+                  .setOnClickAction(
+                    cardAction_('handleDraftEmailToContact', {
+                      email: contactEmail,
+                      name: personName_(cAttrs),
+                      advertiserId: String(cAttrs.advertiser_id || ''),
+                      advertiserName: String(cAttrs.advertiser_name || cAttrs.organization || '')
+                    })
+                  )
+              );
+            }
+          } else if (type === 'advertisers') {
             var attrs = attrsForRecord_(row);
             var advertiserId = recordId_(row, attrs);
             var directUrl = preferredAdvertiserUrl_(attrs, advertiserId);
@@ -959,11 +976,27 @@ var HiEnergyCards = (function () {
 
   function contactWidget_(contact) {
     var subtitle = [contact.email, contact.organization, contact.phone].filter(Boolean).join(' · ');
-    return CardService.newDecoratedText()
+    var widget = CardService.newDecoratedText()
       .setTopLabel('Contact')
       .setText(contact.name || contact.email || 'Unknown contact')
       .setBottomLabel(subtitle)
       .setWrapText(true);
+
+    if (contact.email) {
+      widget.setButton(
+        CardService.newTextButton()
+          .setText('Draft')
+          .setOnClickAction(
+            cardAction_('handleDraftEmailToContact', {
+              email: String(contact.email),
+              name: String(contact.name || ''),
+              advertiserName: String(contact.organization || '')
+            })
+          )
+      );
+    }
+
+    return widget;
   }
 
   function messageWidget_(message, showThreadButton) {
