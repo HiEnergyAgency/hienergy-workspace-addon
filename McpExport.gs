@@ -495,23 +495,23 @@ var HiEnergyMcpExport = (function () {
     if (toolName === 'universal_search' || !toolName) {
       return tablesFromSearchBody_(body);
     }
+    var typed = [];
     if (toolName === 'search_advertisers' || toolName === 'search_advertisers_by_domain') {
       var advertisers = (body && body.data) || body || [];
-      return tablesFromAdvertiserList_(Array.isArray(advertisers) ? advertisers : []);
-    }
-    if (toolName === 'search_deals') {
-      return tablesFromDealsBody_(body);
-    }
-    if (toolName === 'search_transactions') {
-      return tablesFromTransactionsBody_(body);
-    }
-    if (
+      typed = tablesFromAdvertiserList_(Array.isArray(advertisers) ? advertisers : []);
+    } else if (toolName === 'search_deals') {
+      typed = tablesFromDealsBody_(body);
+    } else if (toolName === 'search_transactions') {
+      typed = tablesFromTransactionsBody_(body);
+    } else if (
       toolName === 'get_advertiser_contacts' ||
       toolName === 'search_contacts'
     ) {
-      return tablesFromContactsBody_(body, options);
+      typed = tablesFromContactsBody_(body, options);
     }
-
+    if (typed && typed.length && typed[0].rows && typed[0].rows.length) {
+      return typed;
+    }
     return autoDetectTables_(body);
   }
 
