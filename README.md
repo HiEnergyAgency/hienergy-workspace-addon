@@ -600,6 +600,7 @@ Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login`,
 After the listing is approved, **merges to `main` update live add-on code** via the linked production deployment — no listing resubmit per code change.
 
 ```bash
+npm run marketplace:open              # open console tabs + follow marketplace/SUBMIT.md
 npm run marketplace:submit          # browser: App Configuration + Store Listing
 npm run marketplace:phase4            # CLI status + open console tabs
 ```
