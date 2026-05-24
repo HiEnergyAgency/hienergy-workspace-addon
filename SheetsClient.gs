@@ -6,8 +6,41 @@ var HiEnergySheets = (function () {
       .substring(0, 100) || 'Data';
   }
 
+  var MAX_CELL_CHARS_ = 49500;
+
+  function clampCell_(value) {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'string') {
+      if (value.length > MAX_CELL_CHARS_) {
+        return value.substring(0, MAX_CELL_CHARS_ - 1) + '…';
+      }
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean' || value instanceof Date) {
+      return value;
+    }
+    var str = String(value);
+    if (str.length > MAX_CELL_CHARS_) {
+      return str.substring(0, MAX_CELL_CHARS_ - 1) + '…';
+    }
+    return str;
+  }
+
+  function clampRows_(rows, columnCount) {
+    return (rows || []).map(function (row) {
+      var safe = [];
+      for (var i = 0; i < columnCount; i += 1) {
+        safe.push(clampCell_(row ? row[i] : ''));
+      }
+      return safe;
+    });
+  }
+
   function writeTable_(sheet, headers, rows) {
-    var values = [headers].concat(rows || []);
+    var safeRows = clampRows_(rows, headers.length);
+    var values = [headers].concat(safeRows);
     if (!values.length) {
       return 0;
     }
@@ -99,8 +132,9 @@ var HiEnergySheets = (function () {
       return writeTable_(sheet, headers, rows);
     }
     var startRow = lastRow + 1;
-    sheet.getRange(startRow, 1, rows.length, headers.length).setValues(rows);
-    return rows.length;
+    var safeRows = clampRows_(rows, headers.length);
+    sheet.getRange(startRow, 1, safeRows.length, headers.length).setValues(safeRows);
+    return safeRows.length;
   }
 
   function mergeExportMeta_(exportResult, paginatedBody, paginationState) {
