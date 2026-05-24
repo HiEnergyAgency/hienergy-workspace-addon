@@ -198,7 +198,7 @@ var HiEnergySheets = (function () {
     return createFromTables_(title, tables);
   }
 
-  function exportCachedSearch_() {
+  function exportCachedSearch_(exportOptions) {
     var cached = HiEnergyMcpExport.readCachedSearch();
     if (!cached || !cached.query) {
       return {
@@ -207,7 +207,7 @@ var HiEnergySheets = (function () {
         message: 'Run a Hi Energy search first, then export the latest results.'
       };
     }
-    return exportSearch_(cached.query, cached.scope || 'all', cached.searchMode || 'name');
+    return exportSearch_(cached.query, cached.scope || 'all', cached.searchMode || 'name', exportOptions || {});
   }
 
   function exportCachedMcpTool_() {
@@ -465,11 +465,21 @@ var HiEnergySheets = (function () {
 
   function writeExportTables_(tables, title, options) {
     options = options || {};
-    var active = activeSpreadsheet_();
-    if (active) {
+    var target = null;
+    if (options.targetSpreadsheetId) {
+      try {
+        target = SpreadsheetApp.openById(options.targetSpreadsheetId);
+      } catch (err) {
+        target = null;
+      }
+    }
+    if (!target && !options.forceNewSheet) {
+      target = activeSpreadsheet_();
+    }
+    if (target) {
       var appendMode =
         options.append === undefined ? true : !!options.append;
-      var written = writeTablesToSpreadsheet_(active, tables, {
+      var written = writeTablesToSpreadsheet_(target, tables, {
         append: appendMode,
         title: title
       });
@@ -478,7 +488,11 @@ var HiEnergySheets = (function () {
       }
       return written;
     }
-    return createFromTables_(title, tables);
+    var created = createFromTables_(title, tables);
+    if (created && created.ok && !options.skipSession && options.exportType && options.pagination) {
+      saveExportSession_(options.exportType, options.params || {}, options.pagination, created.spreadsheetId);
+    }
+    return created;
   }
 
   function exportPaginated_(exportType, params, options) {
@@ -555,11 +569,13 @@ var HiEnergySheets = (function () {
       params.suffix
     );
     var written = writeExportTables_(tables, title, {
-      append: !!options.append,
+      append: options.append === undefined ? undefined : !!options.append,
       exportType: exportType,
       params: params,
       pagination: result.pagination,
-      skipSession: !!options.skipSession
+      skipSession: !!options.skipSession,
+      forceNewSheet: !!options.forceNewSheet,
+      targetSpreadsheetId: options.targetSpreadsheetId || ''
     });
 
     var mergedResult = mergeExportMeta_(written, result.body, {
@@ -590,7 +606,7 @@ var HiEnergySheets = (function () {
     return slugs;
   }
 
-  function appendContactsForAdvertisers_(batch, deadline, companyFallback) {
+  function appendContactsForAdvertisers_(batch, deadline, companyFallback, targetSpreadsheetId) {
     if (!HiEnergyApi || typeof HiEnergyApi.advertiserContacts !== 'function') {
       return { rowCount: 0 };
     }
@@ -627,9 +643,19 @@ var HiEnergySheets = (function () {
       { data: collected },
       { advertiserCompanyFallback: companyFallback || '' }
     );
-    var active = activeSpreadsheet_();
-    if (active) {
-      var written = writeTablesToSpreadsheet_(active, tables, { append: true });
+    var target = null;
+    if (targetSpreadsheetId) {
+      try {
+        target = SpreadsheetApp.openById(targetSpreadsheetId);
+      } catch (errOpen) {
+        target = null;
+      }
+    }
+    if (!target) {
+      target = activeSpreadsheet_();
+    }
+    if (target) {
+      var written = writeTablesToSpreadsheet_(target, tables, { append: true });
       return { rowCount: written.rowCount || 0 };
     }
     return { rowCount: 0 };
@@ -788,8 +814,9 @@ var HiEnergySheets = (function () {
     return createFromTables_(HiEnergyMcpExport.createSheetTitle('Google Contacts', query), tables);
   }
 
-  function exportAdvertisers_(query, searchMode) {
+  function exportAdvertisers_(query, searchMode, exportOptions) {
     ensureAuthenticatedForExport_();
+    exportOptions = exportOptions || {};
 
     var normalized = String(query || '').trim();
     if (!normalized) {
@@ -819,8 +846,28 @@ var HiEnergySheets = (function () {
     }
 
     var advertiserDeadline = Date.now() + (HiEnergyConfig.exportTimeBudgetMs || 22000);
+    var targetSpreadsheetId = '';
+    if (exportOptions.forceNewSheet && !activeSpreadsheet_()) {
+      var preTitle = HiEnergyMcpExport.createSheetTitle('Advertisers', normalized, mode);
+      try {
+        var preSs = SpreadsheetApp.create(String(preTitle).substring(0, 200));
+        targetSpreadsheetId = preSs.getId();
+      } catch (errCreate) {
+        console.warn('Could not pre-create new spreadsheet: ' + errCreate);
+      }
+    } else if (exportOptions.forceNewSheet && activeSpreadsheet_()) {
+      var newTitle = HiEnergyMcpExport.createSheetTitle('Advertisers', normalized, mode);
+      try {
+        var newSs = SpreadsheetApp.create(String(newTitle).substring(0, 200));
+        targetSpreadsheetId = newSs.getId();
+      } catch (errCreateActive) {
+        console.warn('Could not create new spreadsheet: ' + errCreateActive);
+      }
+    }
     var exported = exportPaginated_('advertisers', { query: normalized, searchMode: mode }, {
-      deadline: advertiserDeadline
+      deadline: advertiserDeadline,
+      forceNewSheet: !!exportOptions.forceNewSheet,
+      targetSpreadsheetId: targetSpreadsheetId
     });
     if (exported.ok) {
       var advertiserRowsOnly = exported.rowCount || 0;
@@ -833,7 +880,8 @@ var HiEnergySheets = (function () {
       var transactionsAddition = exportSecondaryTab_(
         'transactions',
         { query: normalized, days: 30 },
-        advertiserDeadline
+        advertiserDeadline,
+        exported.spreadsheetId || targetSpreadsheetId
       );
       if (transactionsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
@@ -847,7 +895,8 @@ var HiEnergySheets = (function () {
       var contactsAddition = appendContactsForAdvertisers_(
         exported.advertiserBatch || [],
         advertiserDeadline,
-        normalized
+        normalized,
+        exported.spreadsheetId || targetSpreadsheetId
       );
       if (contactsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
@@ -865,13 +914,14 @@ var HiEnergySheets = (function () {
     return exported;
   }
 
-  function exportSecondaryTab_(exportType, params, deadline) {
+  function exportSecondaryTab_(exportType, params, deadline, targetSpreadsheetId) {
     try {
       var part = exportPaginated_(exportType, params, {
         append: true,
         skipSession: true,
         deadline: deadline,
-        fetchAll: true
+        fetchAll: true,
+        targetSpreadsheetId: targetSpreadsheetId || ''
       });
       if (!part || !part.ok) {
         return { rowCount: 0, exhausted: true };
@@ -886,7 +936,7 @@ var HiEnergySheets = (function () {
     }
   }
 
-  function exportCachedAdvertisers_() {
+  function exportCachedAdvertisers_(exportOptions) {
     var cached = HiEnergyMcpExport.readCachedAdvertiserSearch();
     if (!cached || !cached.query) {
       return {
@@ -895,25 +945,28 @@ var HiEnergySheets = (function () {
         message: 'Search advertisers first, then export the latest results.'
       };
     }
-    return exportAdvertisers_(cached.query, cached.searchMode || 'name');
+    return exportAdvertisers_(cached.query, cached.searchMode || 'name', exportOptions || {});
   }
 
-  function exportDeals_(query) {
+  function exportDeals_(query, exportOptions) {
     ensureAuthenticatedForExport_();
+    exportOptions = exportOptions || {};
 
     var normalized = String(query || '').trim();
     if (!normalized) {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter a deal keyword to search.' };
     }
 
-    var exported = exportPaginated_('deals', { query: normalized });
+    var exported = exportPaginated_('deals', { query: normalized }, {
+      forceNewSheet: !!exportOptions.forceNewSheet
+    });
     if (exported.ok) {
       HiEnergyMcpExport.cacheDealsSearch(normalized, { ok: true, body: { data: [] } });
     }
     return exported;
   }
 
-  function exportCachedDeals_() {
+  function exportCachedDeals_(exportOptions) {
     var cached = HiEnergyMcpExport.readCachedDealsSearch();
     if (!cached || !cached.query) {
       return {
@@ -922,11 +975,12 @@ var HiEnergySheets = (function () {
         message: 'Search deals first, then export the latest results.'
       };
     }
-    return exportDeals_(cached.query);
+    return exportDeals_(cached.query, exportOptions || {});
   }
 
-  function exportTransactions_(query, days, advertiserId) {
+  function exportTransactions_(query, days, advertiserId, exportOptions) {
     ensureAuthenticatedForExport_();
+    exportOptions = exportOptions || {};
 
     var normalized = String(query || '').trim();
     var advertiser = String(advertiserId || '').trim();
@@ -936,6 +990,8 @@ var HiEnergySheets = (function () {
       days: dayRange,
       advertiserId: advertiser,
       suffix: dayRange + ' days'
+    }, {
+      forceNewSheet: !!exportOptions.forceNewSheet
     });
     if (exported.ok) {
       HiEnergyMcpExport.cacheTransactionsSearch(normalized || 'Recent', { ok: true, body: { data: [] } }, {
@@ -946,7 +1002,7 @@ var HiEnergySheets = (function () {
     return exported;
   }
 
-  function exportCachedTransactions_() {
+  function exportCachedTransactions_(exportOptions) {
     var cached = HiEnergyMcpExport.readCachedTransactionsSearch();
     if (!cached || !cached.query) {
       return {
@@ -957,11 +1013,12 @@ var HiEnergySheets = (function () {
     }
     var days = (cached.meta && cached.meta.days) || 30;
     var advertiserId = (cached.meta && cached.meta.advertiserId) || '';
-    return exportTransactions_(cached.query, days, advertiserId);
+    return exportTransactions_(cached.query, days, advertiserId, exportOptions || {});
   }
 
-  function exportAdvertiserContacts_(advertiser) {
+  function exportAdvertiserContacts_(advertiser, exportOptions) {
     ensureAuthenticatedForExport_();
+    exportOptions = exportOptions || {};
 
     var normalized = String(advertiser || '').trim();
     if (!normalized) {
@@ -972,14 +1029,16 @@ var HiEnergySheets = (function () {
       };
     }
 
-    var exported = exportPaginated_('contacts', { query: normalized });
+    var exported = exportPaginated_('contacts', { query: normalized }, {
+      forceNewSheet: !!exportOptions.forceNewSheet
+    });
     if (exported.ok) {
       HiEnergyMcpExport.cacheAdvertiserContactsSearch(normalized, { ok: true, body: { data: [] } });
     }
     return exported;
   }
 
-  function exportCachedAdvertiserContacts_() {
+  function exportCachedAdvertiserContacts_(exportOptions) {
     var cached = HiEnergyMcpExport.readCachedAdvertiserContactsSearch();
     if (!cached || !cached.query) {
       return {
@@ -988,7 +1047,7 @@ var HiEnergySheets = (function () {
         message: 'Fetch contacts first, then export the latest results.'
       };
     }
-    return exportAdvertiserContacts_(cached.query);
+    return exportAdvertiserContacts_(cached.query, exportOptions || {});
   }
 
   function exportGoogleContacts_(query) {
@@ -1019,21 +1078,22 @@ var HiEnergySheets = (function () {
     return createFromGoogleContacts_(cached.query, contacts);
   }
 
-  function exportSearch_(query, scope, searchMode) {
+  function exportSearch_(query, scope, searchMode, exportOptions) {
+    exportOptions = exportOptions || {};
     if (scope === 'advertisers') {
-      return exportAdvertisers_(query, searchMode || 'name');
+      return exportAdvertisers_(query, searchMode || 'name', exportOptions);
     }
     if (scope === 'deals') {
-      return exportDeals_(query);
+      return exportDeals_(query, exportOptions);
     }
     if (scope === 'transactions') {
-      return exportTransactions_(query);
+      return exportTransactions_(query, null, null, exportOptions);
     }
 
     ensureAuthenticatedForExport_();
 
     if (scope === 'contacts' || scope === 'advertiser_contacts') {
-      return exportAdvertiserContacts_(query);
+      return exportAdvertiserContacts_(query, exportOptions);
     }
 
     if (scope === 'all') {
@@ -1047,6 +1107,15 @@ var HiEnergySheets = (function () {
       var allTypes = ['advertisers', 'deals', 'transactions', 'contacts'];
       var sharedBudget = HiEnergyConfig.exportTimeBudgetMs || 22000;
       var sharedDeadline = Date.now() + sharedBudget;
+      var allNewTarget = '';
+      if (exportOptions.forceNewSheet) {
+        try {
+          var allTitle = HiEnergyMcpExport.createSheetTitle('Search', query);
+          allNewTarget = SpreadsheetApp.create(String(allTitle).substring(0, 200)).getId();
+        } catch (errCreateAll) {
+          console.warn('Could not pre-create new spreadsheet: ' + errCreateAll);
+        }
+      }
       allTypes.forEach(function (type, index) {
         if (Date.now() >= sharedDeadline) {
           anyHasMore = true;
@@ -1059,7 +1128,9 @@ var HiEnergySheets = (function () {
         var part = exportPaginated_(type, partParams, {
           skipSession: true,
           append: index > 0,
-          deadline: sharedDeadline
+          deadline: sharedDeadline,
+          forceNewSheet: !!exportOptions.forceNewSheet && !allNewTarget && index === 0,
+          targetSpreadsheetId: spreadsheetId || allNewTarget || ''
         });
         if (part.ok) {
           lastExport = part;

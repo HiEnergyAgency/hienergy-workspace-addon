@@ -657,9 +657,9 @@ var HiEnergyCards = (function () {
   function exportLabel_(base) {
     if (currentHostApp_() === 'SHEETS') {
       if (base === 'Export search results' || base === 'Export results') {
-        return 'Export to this sheet';
+        return 'Add to this sheet';
       }
-      return base.replace(/^Export /, 'Export ') + ' to this sheet';
+      return base.replace(/^Export /, 'Add ') + ' to this sheet';
     }
     if (base === 'Export search results' || base === 'Export results') {
       return 'Create Google Sheet';
@@ -709,6 +709,42 @@ var HiEnergyCards = (function () {
     return filledButton_(entry.label, cardAction_(entry.handler, params || null));
   }
 
+  function exportNewSheetButton_(exportType, params) {
+    var handler;
+    if (exportType === true) {
+      handler = 'handleExportMcpResultToSheet';
+    } else {
+      var map = {
+        advertisers: 'handleExportCachedAdvertisersToSheet',
+        deals: 'handleExportCachedDealsToSheet',
+        transactions: 'handleExportCachedTransactionsToSheet',
+        advertiser_contacts: 'handleExportCachedAdvertiserContactsToSheet',
+        google_contacts: 'handleExportCachedGoogleContactsToSheet'
+      };
+      handler = map[exportType] || 'handleExportCachedSearchToSheet';
+    }
+    var actionParams = {};
+    if (params) {
+      Object.keys(params).forEach(function (k) {
+        actionParams[k] = params[k];
+      });
+    }
+    actionParams.newSheet = 'true';
+    return CardService.newTextButton()
+      .setText('New sheet')
+      .setOnClickAction(cardAction_(handler, actionParams));
+  }
+
+  function exportButtonSet_(exportType, params) {
+    var buttons = CardService.newButtonSet().addButton(
+      exportSheetButton_(exportType, params)
+    );
+    if (currentHostApp_() === 'SHEETS') {
+      buttons.addButton(exportNewSheetButton_(exportType, params));
+    }
+    return buttons;
+  }
+
   function searchResultsCard_(query, result, options) {
     options = options || {};
     if (!result.ok) {
@@ -742,16 +778,21 @@ var HiEnergyCards = (function () {
 
     if (grandTotal) {
       var exportSection = CardService.newCardSection();
-      var exportButtons = CardService.newButtonSet()
-        .addButton(exportSheetButton_(options.exportType, exportParams))
-        .addButton(
+      var primaryRow = CardService.newButtonSet()
+        .addButton(exportSheetButton_(options.exportType, exportParams));
+      if (currentHostApp_() === 'SHEETS') {
+        primaryRow.addButton(exportNewSheetButton_(options.exportType, exportParams));
+      }
+      exportSection.addWidget(primaryRow);
+      exportSection.addWidget(
+        CardService.newButtonSet().addButton(
           CardService.newTextButton()
             .setText('New search')
             .setOnClickAction(
               cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
             )
-        );
-      exportSection.addWidget(exportButtons);
+        )
+      );
       card.addSection(exportSection);
     }
 
@@ -844,12 +885,7 @@ var HiEnergyCards = (function () {
         type === 'contacts' || type === 'advertiser_contacts'
           ? 'advertiser_contacts'
           : type;
-      var sectionExportButton = exportSheetButton_(sectionExportType, exportParams);
-      if (sectionExportButton) {
-        section.addWidget(
-          CardService.newButtonSet().addButton(sectionExportButton)
-        );
-      }
+      section.addWidget(exportButtonSet_(sectionExportType, exportParams));
 
       card.addSection(section);
     });
