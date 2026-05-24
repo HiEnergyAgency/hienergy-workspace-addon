@@ -75,6 +75,17 @@ function createCardServiceMock(captured) {
     newDecoratedText: function () {
       return chain('decoratedText');
     },
+    newButtonSet: function () {
+      const set = chain('buttonSet');
+      set.addButton = function (btn) {
+        set.__calls.push({ method: 'addButton', args: [btn] });
+        return set;
+      };
+      return set;
+    },
+    newKeyValue: function () {
+      return chain('keyValue');
+    },
     newAction: function () {
       return chain('action');
     },

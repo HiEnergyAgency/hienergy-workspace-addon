@@ -552,17 +552,37 @@ var HiEnergyCards = (function () {
     return attrs.publisher_name || attrs.publisher || attrs.publisher_display_name || '';
   }
 
+  function humanize_(value) {
+    var str = String(value || '').replace(/[_-]+/g, ' ').trim();
+    if (!str) {
+      return '';
+    }
+    if (str.toLowerCase() === 'not applied') {
+      return 'Available';
+    }
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
   function topLabelForRecord_(type, record) {
     var attrs = attrsForRecord_(record);
     if (type === 'advertisers') {
-      var status = advertiserStatus_(attrs);
+      var status = humanize_(advertiserStatus_(attrs));
       var publisher = advertiserPublisher_(attrs);
       if (status && publisher) {
         return status + ' · ' + publisher;
       }
       return status || publisher || 'Advertiser';
     }
-    return type.slice(0, -1);
+    if (type === 'deals') {
+      return humanize_(attrs.deal_type || attrs.type || attrs.category) || 'Deal';
+    }
+    if (type === 'transactions') {
+      return humanize_(attrs.status) || 'Transaction';
+    }
+    if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
+      return humanize_(attrs.job_title || attrs.title || attrs.role) || 'Contact';
+    }
+    return humanize_(type.slice(0, -1));
   }
 
   function subtitleForRecord_(type, record) {
@@ -624,9 +644,16 @@ var HiEnergyCards = (function () {
   }
 
   function exportLabel_(base) {
-    return currentHostApp_() === 'SHEETS'
-      ? base + ' (export to this sheet)'
-      : base + ' to Google Sheet';
+    if (currentHostApp_() === 'SHEETS') {
+      if (base === 'Export search results' || base === 'Export results') {
+        return 'Export to this sheet';
+      }
+      return base.replace(/^Export /, 'Export ') + ' to this sheet';
+    }
+    if (base === 'Export search results' || base === 'Export results') {
+      return 'Create Google Sheet';
+    }
+    return base + ' to Google Sheet';
   }
 
   function exportSheetButton_(exportType, params) {
@@ -695,7 +722,7 @@ var HiEnergyCards = (function () {
       ? '"' + query + '" · ' + pluralize_(grandTotal, 'match')
       : 'No matches for "' + query + '"';
 
-    var card = CardService.newCardBuilder().setHeader(header_('Results', subtitle));
+    var card = CardService.newCardBuilder().setHeader(header_(query || 'Results', subtitle));
 
     if (grandTotal) {
       var exportSection = CardService.newCardSection();
@@ -703,7 +730,16 @@ var HiEnergyCards = (function () {
       if (options.searchMode) {
         exportParams.searchMode = String(options.searchMode);
       }
-      exportSection.addWidget(exportSheetButton_(options.exportType, exportParams));
+      var exportButtons = CardService.newButtonSet()
+        .addButton(exportSheetButton_(options.exportType, exportParams))
+        .addButton(
+          CardService.newTextButton()
+            .setText('New search')
+            .setOnClickAction(
+              cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
+            )
+        );
+      exportSection.addWidget(exportButtons);
       card.addSection(exportSection);
     }
 
@@ -787,7 +823,7 @@ var HiEnergyCards = (function () {
       if (entry.total > shownCount) {
         section.addWidget(
           CardService.newTextParagraph().setText(
-            'Showing first ' + shownCount + ' of ' + entry.total + '. Export to see them all.'
+            '<i>+' + (entry.total - shownCount) + ' more · export to see all</i>'
           )
         );
       }
@@ -803,27 +839,21 @@ var HiEnergyCards = (function () {
       );
     }
 
-    var footer = CardService.newCardSection();
-    footer.addWidget(
-      CardService.newTextButton()
-        .setText('New search')
-        .setOnClickAction(
-          cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
-        )
-    );
-    if (found) {
-      footer.addWidget(
-        CardService.newTextButton()
-          .setText('Create Sheet')
-          .setOnClickAction(
-            cardAction_(
-              'onCreateSheetAction',
-              options.hostApp ? { hostApp: options.hostApp } : null
+    if (!grandTotal) {
+      var emptyFooter = CardService.newCardSection().addWidget(
+        CardService.newButtonSet().addButton(
+          CardService.newTextButton()
+            .setText('New search')
+            .setOnClickAction(
+              cardAction_(
+                'onSearchAction',
+                options.hostApp ? { hostApp: options.hostApp } : null
+              )
             )
-          )
+        )
       );
+      card.addSection(emptyFooter);
     }
-    card.addSection(footer);
 
     return card.build();
   }
