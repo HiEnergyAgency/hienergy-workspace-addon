@@ -124,20 +124,186 @@ The add-on manifest (`appsscript.json`) uses the same name, logo, and colors for
 | `ContactsClient.gs` | Google People / Contacts lookup |
 | `Setup.gs` | One-time admin helper for script properties |
 
-## Deployment checklist
+## Deployment
 
-Before publishing or sharing the add-on:
+This add-on deploys as a **Google Apps Script** project with a **Workspace add-on** manifest. There is no separate server to host — Google runs the sidebar UI and your `.gs` code.
 
-1. **Push code** — `clasp push` from this repo
-2. **Script properties** — set all `AUTH0_*` and optional `HIENERGY_MCP_URL` values
-3. **Libraries** — confirm OAuth2 library is linked
-4. **Advanced services** — enable People API in the Apps Script editor
-5. **Auth0 callback** — add `https://script.google.com/macros/d/YOUR_SCRIPT_ID/usercallback`
-6. **Test deployment** — Deploy → Test deployments → install for test users
-7. **Re-authorize** — users must re-approve Google scopes after `gmail.readonly` / `contacts.readonly` changes
-8. **Verify branding** — sidebar shows **Hi Energy AI** name, logo, and purple theme
+### Prerequisites
+
+| Requirement | Notes |
+|-------------|-------|
+| Google account | With access to [Apps Script](https://script.google.com) |
+| Google Workspace | Add-on works in Gmail, Drive, Docs, Sheets, Slides, Calendar |
+| [clasp](https://github.com/google/clasp) | `npm install -g @google/clasp` |
+| Apps Script API | Enable at [script.google.com/home/usersettings](https://script.google.com/home/usersettings) |
+| Auth0 tenant | Regular Web Application for Hi Energy AI sign-in |
+| Hi Energy AI account | Users must exist in Hi Energy AI with matching email |
+
+### 1. Clone and validate locally
+
+```bash
+git clone https://github.com/HiEnergyAgency/hienergy-workspace-addon.git
+cd hienergy-workspace-addon
+npm install
+npm run validate
+```
+
+Fix any lint or spec failures before deploying.
+
+### 2. Create or link the Apps Script project
+
+**New project:**
+
+```bash
+clasp login
+cp .clasp.json.example .clasp.json
+clasp create --title "Hi Energy AI" --type workspace-add-on
+```
+
+This writes your `scriptId` into `.clasp.json` (gitignored — do not commit).
+
+**Existing project:**
+
+```bash
+clasp login
+cp .clasp.json.example .clasp.json
+# Edit .clasp.json and set scriptId to your Apps Script project ID
+```
+
+Find the script ID in the Apps Script editor under **Project Settings** → **IDs**.
+
+### 3. Push code to Apps Script
+
+```bash
+clasp push
+```
+
+This uploads all `.gs` files and `appsscript.json` to Google.
+
+After the first push, open the project:
+
+```bash
+clasp open-script
+```
+
+Confirm in the editor:
+
+- **Libraries** → **OAuth2** is linked (from `appsscript.json`)
+- **Services** → **People API** is enabled
+- All source files are present (`Main.gs`, `Cards.gs`, `McpClient.gs`, etc.)
+
+### 4. Configure Auth0
+
+In [Auth0 Dashboard](https://manage.auth0.com):
+
+1. **Applications** → **Create Application** → **Regular Web Application**
+2. Add the callback URL using your Apps Script project ID:
+   ```
+   https://script.google.com/macros/d/YOUR_SCRIPT_ID/usercallback
+   ```
+3. Ensure the API audience matches Hi Energy AI's MCP resource:
+   ```
+   https://api.hienergyrocket.com/mcp
+   ```
+4. Note **Domain**, **Client ID**, and **Client Secret**
+
+### 5. Set script properties
+
+In Apps Script → **Project Settings** → **Script properties**, add:
+
+| Property | Example | Required |
+|----------|---------|----------|
+| `AUTH0_DOMAIN` | `your-tenant.us.auth0.com` | Yes |
+| `AUTH0_CLIENT_ID` | `abc123…` | Yes |
+| `AUTH0_CLIENT_SECRET` | `secret…` | Yes |
+| `AUTH0_AUDIENCE` | `https://api.hienergyrocket.com/mcp` | Yes |
+| `HIENERGY_MCP_URL` | `https://app.hienergy.ai/mcp` | Optional |
+| `HIENERGY_API_BASE` | `https://app.hienergy.ai/api/v1` | Optional |
+
+Or run `configureAuth0ScriptProperties()` from `Setup.gs` in the Apps Script editor (edit placeholder values first).
+
+End users never see these values.
+
+### 6. Test deployment (internal)
+
+Use a test deployment before sharing widely:
+
+1. In Apps Script → **Deploy** → **Test deployments**
+2. Click **Install** and pick a configuration
+3. Open Gmail (or Drive/Docs) and install the test add-on for your account
+4. Verify:
+   - Sidebar shows **Hi Energy AI** branding
+   - **Sign in with Hi Energy AI** completes Auth0 login
+   - Search returns results via MCP `universal_search`
+   - Opening an email shows Gmail context and contact lookup
+   - **MCP Tools** lists available tools
+
+Share the test deployment link with teammates for internal QA. Test deployments are limited to users in the same Google Cloud project / domain policy allows.
+
+### 7. Production deployment
+
+For a stable, versioned deployment inside your organization:
+
+1. In Apps Script → **Deploy** → **New deployment**
+2. Click the gear icon → select type **Add-on**
+3. Fill in description (e.g. `Hi Energy AI v1.0.0`)
+4. Click **Deploy** and copy the deployment ID
+
+To update production later:
+
+```bash
+npm run validate
+clasp push
+clasp deploy --description "Hi Energy AI v1.0.1"
+```
+
+Or create a new deployment version in the Apps Script UI under **Deploy** → **Manage deployments** → **Edit** → **Version** → **New version**.
+
+### 8. Google Workspace Marketplace (optional)
+
+To publish publicly on the [Google Workspace Marketplace](https://workspace.google.com/marketplace):
+
+1. Complete a production deployment (step 7)
+2. Open [Google Cloud Console](https://console.cloud.google.com) for the GCP project linked to your Apps Script
+3. Configure the **OAuth consent screen** (app name: **Hi Energy AI**, logo, privacy policy, support email)
+4. Submit for **OAuth verification** — required for sensitive scopes (`gmail.readonly`, `contacts.readonly`)
+5. In [Google Workspace Marketplace SDK](https://console.cloud.google.com/marketplace), create a listing:
+   - App name: **Hi Energy AI**
+   - Logo: `https://app.hienergy.ai/branding/hienergy-logo-black.svg`
+   - Link to your Apps Script deployment
+6. Complete Google's add-on review checklist (privacy, data use, screenshots)
+
+Marketplace review can take several weeks. Internal/test deployments do not require marketplace listing.
+
+### 9. Post-deploy checklist
+
+| Step | Verify |
+|------|--------|
+| Auth0 callback | `usercallback` URL matches script ID exactly |
+| Branding | Sidebar title is **Hi Energy AI** with purple theme |
+| MCP | Settings shows `https://app.hienergy.ai/mcp` |
+| Universal search | Search scope "Everything" returns advertisers/deals |
+| Gmail context | Opening an email shows sender + domain actions |
+| Re-authorization | After scope changes, users re-approve Google permissions |
+
+### Updating an existing deployment
+
+```bash
+git pull
+npm run validate
+clasp push
+```
+
+Then in Apps Script:
+
+- **Test deployments** — pick up changes automatically on next open
+- **Production** — create a new deployment version or run `clasp deploy`
+
+If you change OAuth scopes in `appsscript.json`, users must re-install or re-authorize the add-on.
 
 ## One-time admin setup
+
+The steps above cover full deployment. This section summarizes the Auth0 and Google configuration details.
 
 ### 1. Auth0 application
 
