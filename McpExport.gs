@@ -31,6 +31,19 @@ var HiEnergyMcpExport = (function () {
     );
   }
 
+  function advertiserContactsAdminUrl_(slug) {
+    var clean = String(slug || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.advertiserAdminPath || '/admin/advertisers/') +
+      encodeURIComponent(clean) +
+      '#contacts'
+    );
+  }
+
   function publisherAdminUrl_(id) {
     var clean = String(id || '').trim();
     if (!clean) {
@@ -116,8 +129,10 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       var name = first_(a.display_name, a.name, id);
+      var slugOrId = a.slug || id;
       return [
-        hyperlink_(advertiserHiEnergyUrl_(a.slug || id), name),
+        hyperlink_(advertiserHiEnergyUrl_(slugOrId), name),
+        hyperlink_(advertiserContactsAdminUrl_(slugOrId), 'Contacts'),
         name,
         publisherCell_(a),
         a.domain || '',
@@ -297,6 +312,7 @@ var HiEnergyMcpExport = (function () {
       title: 'Advertisers',
       headers: [
         'Hi Energy link',
+        'Contacts',
         'Name',
         'Publisher',
         'Domain',

@@ -47,7 +47,9 @@ describe('HiEnergyMcpExport', function () {
     expect(tables).toHaveLength(2);
     expect(tables[0].headers[0]).toBe('Hi Energy link');
     expect(tables[0].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/a/1","Acme")');
-    expect(tables[0].rows[0][1]).toBe('Acme');
+    expect(tables[0].headers[1]).toBe('Contacts');
+    expect(tables[0].rows[0][1]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/1#contacts","Contacts")');
+    expect(tables[0].rows[0][2]).toBe('Acme');
     expect(tables[1].headers[0]).toBe('Hi Energy admin link');
     expect(tables[1].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/deals/2","Spring sale")');
     expect(tables[1].rows[0][2]).toBe('Spring sale');
