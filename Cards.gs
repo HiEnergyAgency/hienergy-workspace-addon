@@ -57,7 +57,18 @@ var HiEnergyCards = (function () {
   }
 
   function pluralize_(n, word) {
-    return String(n) + ' ' + word + (n === 1 ? '' : 's');
+    if (n === 1) {
+      return String(n) + ' ' + word;
+    }
+    var plural = word;
+    if (/(ch|sh|s|x|z)$/i.test(word)) {
+      plural = word + 'es';
+    } else if (/[^aeiou]y$/i.test(word)) {
+      plural = word.slice(0, -1) + 'ies';
+    } else {
+      plural = word + 's';
+    }
+    return String(n) + ' ' + plural;
   }
 
   function advertiserAppUrl_(id) {
@@ -724,12 +735,13 @@ var HiEnergyCards = (function () {
 
     var card = CardService.newCardBuilder().setHeader(header_(query || 'Results', subtitle));
 
+    var exportParams = { query: String(query || '') };
+    if (options.searchMode) {
+      exportParams.searchMode = String(options.searchMode);
+    }
+
     if (grandTotal) {
       var exportSection = CardService.newCardSection();
-      var exportParams = { query: String(query || '') };
-      if (options.searchMode) {
-        exportParams.searchMode = String(options.searchMode);
-      }
       var exportButtons = CardService.newButtonSet()
         .addButton(exportSheetButton_(options.exportType, exportParams))
         .addButton(
@@ -825,6 +837,17 @@ var HiEnergyCards = (function () {
           CardService.newTextParagraph().setText(
             '<i>+' + (entry.total - shownCount) + ' more · export to see all</i>'
           )
+        );
+      }
+
+      var sectionExportType =
+        type === 'contacts' || type === 'advertiser_contacts'
+          ? 'advertiser_contacts'
+          : type;
+      var sectionExportButton = exportSheetButton_(sectionExportType, exportParams);
+      if (sectionExportButton) {
+        section.addWidget(
+          CardService.newButtonSet().addButton(sectionExportButton)
         );
       }
 
