@@ -376,6 +376,7 @@ The manifest requests these Google scopes (users re-authorize after scope change
 | `gmail.readonly` | Search and read Gmail threads |
 | `contacts.readonly` | Search Google Contacts |
 | `script.external_request` | Call Hi Energy AI MCP server |
+| `script.locale` | Host app locale (`useLocaleFromApp` in manifest) |
 | `userinfo.email` | User identity |
 
 `gmail.readonly` is a sensitive scope — Google Workspace Marketplace publication may require additional verification.

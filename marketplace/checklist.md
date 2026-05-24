@@ -33,6 +33,7 @@ Use this checklist in order. Check off each item as you complete it.
   - `contacts.readonly` *(sensitive)*
   - `spreadsheets`
   - `userinfo.email`
+  - `script.locale`
   - `script.external_request`
 - [ ] **Privacy policy URL**: https://app.hienergy.ai/privacy_policy
 - [ ] **Terms of service URL**: https://app.hienergy.ai/terms_of_service

@@ -91,6 +91,16 @@ Submit this content with your OAuth verification request in Google Cloud Console
 
 ---
 
+### `https://www.googleapis.com/auth/script.locale`
+
+**Why needed:** Read the host Workspace app's locale when `useLocaleFromApp` is enabled in the add-on manifest.
+
+**How used:** CardService uses the locale for add-on UI strings and formatting.
+
+**User benefit:** Sidebar labels and messages match the user's Gmail/Workspace language settings.
+
+---
+
 ### `https://www.googleapis.com/auth/script.external_request`
 
 **Why needed:** Call Hi Energy AI MCP server (`https://app.hienergy.ai/mcp`) and Auth0 token endpoints.

@@ -17,6 +17,7 @@ describe('appsscript.json manifest', function () {
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/contacts.readonly');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/spreadsheets');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.external_request');
+    expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.locale');
     expect(manifest.urlFetchWhitelist).toContain('https://app.hienergy.ai/');
     expect(manifest.addOns.common.openLinkUrlPrefixes).toContain('https://app.hienergy.ai/');
     expect(manifest.addOns.common.openLinkUrlPrefixes).toContain('https://docs.google.com/');

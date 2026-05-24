@@ -68,6 +68,7 @@ OAuth scopes (paste all):
   https://www.googleapis.com/auth/contacts.readonly
   https://www.googleapis.com/auth/spreadsheets
   https://www.googleapis.com/auth/userinfo.email
+  https://www.googleapis.com/auth/script.locale
   https://www.googleapis.com/auth/script.external_request
 
 === Store Listing ===
