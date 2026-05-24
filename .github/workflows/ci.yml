@@ -5,9 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: Skip validate and deploy current main (manual redeploy)
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-main-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate:
+    if: github.event_name != 'workflow_dispatch' || inputs.deploy_only != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,9 +40,18 @@ jobs:
       - name: Validate manifest wiring
         run: npm run check:manifest
 
+      - name: Validate marketplace assets (files)
+        run: npm run check:marketplace
+
   deploy:
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: |
+      always() &&
+      (needs.validate.result == 'success' || needs.validate.result == 'skipped') &&
+      (
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,23 +72,43 @@ jobs:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
         run: |
           if [ -z "$CLASPRC_JSON" ]; then
-            echo "::error::CLASPRC_JSON secret is missing. See README → Continuous deployment."
+            echo "::error::CLASPRC_JSON secret is missing. Run: npm run setup:github-secrets"
             exit 1
           fi
           echo "$CLASPRC_JSON" > ~/.clasprc.json
 
-      - name: Push to Apps Script
-        run: npx clasp push --force
-
-      - name: Update production deployment
+      - name: Deploy to Apps Script production
         env:
           APPS_SCRIPT_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
           GITHUB_SHA: ${{ github.sha }}
         run: |
           if [ -z "$APPS_SCRIPT_DEPLOYMENT_ID" ]; then
-            echo "::error::APPS_SCRIPT_DEPLOYMENT_ID secret is missing. See README → Continuous deployment."
+            echo "::error::APPS_SCRIPT_DEPLOYMENT_ID secret is missing. Run: npm run setup:github-secrets"
             exit 1
           fi
-          npx clasp deploy \
-            -i "$APPS_SCRIPT_DEPLOYMENT_ID" \
-            -d "Hi Energy AI Workspace Add-on — main ${GITHUB_SHA:0:7}"
+          npm run deploy:ci
+
+      - name: Verify production deployment
+        env:
+          APPS_SCRIPT_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node scripts/verify-deployment.mjs
+
+      - name: Deployment summary
+        env:
+          APPS_SCRIPT_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "## Apps Script production deploy"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${GITHUB_SHA:0:7}\` |"
+            echo "| Deployment ID | \`${APPS_SCRIPT_DEPLOYMENT_ID}\` |"
+            echo "| Script | [Open in Apps Script](https://script.google.com/home/projects/${{ vars.APPS_SCRIPT_ID }}/edit) |"
+            echo ""
+            echo "The Marketplace listing uses this deployment ID — **merges to \`main\` update live add-on code** without resubmitting the listing."
+            echo ""
+            echo "First-time Marketplace approval is still manual: \`npm run marketplace:submit\`"
+          } >> "$GITHUB_STEP_SUMMARY"

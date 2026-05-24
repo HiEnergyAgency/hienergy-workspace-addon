@@ -43,5 +43,16 @@ module.exports = [
     rules: {
       'no-console': 'off'
     }
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: Object.assign({}, globals.node)
+    },
+    rules: {
+      'no-console': 'off'
+    }
   }
 ];

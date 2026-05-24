@@ -428,11 +428,24 @@ CI runs `npm run validate` on every push to `main` via GitHub Actions. **Merges 
 
 ### Continuous deployment (merge to `main`)
 
-On every push to `main`, GitHub Actions:
+On every **merge/push to `main`**, GitHub Actions (`.github/workflows/ci.yml`):
 
-1. Runs `npm run validate`
+1. Runs `npm run validate` + marketplace file checks
 2. `clasp push --force` to the Apps Script project in `.github/clasp.json`
-3. Updates the production deployment via `clasp deploy -i …`
+3. Updates the **production** deployment (`clasp deploy -i …`) — this is the deployment ID linked in the Marketplace SDK listing
+4. Verifies the production deployment ID is present (`scripts/verify-deployment.mjs`)
+
+**Live add-on updates:** After the Marketplace listing is approved once, you do **not** resubmit the listing for each code change. Merges to `main` update the linked production deployment automatically.
+
+**First-time Marketplace approval** (console only, no API):
+
+```bash
+npm run marketplace:submit
+```
+
+Or trigger **Actions → Marketplace submit** for the checklist output.
+
+**Manual redeploy** (same commit, refresh production): Actions → CI → Run workflow → enable “Skip validate and deploy current main”.
 
 **One-time setup** — repository secrets (required by CI):
 

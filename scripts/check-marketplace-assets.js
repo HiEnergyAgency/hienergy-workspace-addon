@@ -34,6 +34,8 @@ const DIMENSIONS = {
   'assets/marketplace-screenshot-gmail-context.png': { width: 1280, height: 800 }
 };
 
+const CAN_CHECK_DIMENSIONS = process.platform === 'darwin';
+
 function getDimensions(relPath) {
   const abs = join(ROOT, relPath);
   const out = execSync('sips -g pixelWidth -g pixelHeight "' + abs + '"', { encoding: 'utf8' });
@@ -52,20 +54,24 @@ REQUIRED_FILES.forEach(function (file) {
   }
 });
 
-Object.entries(DIMENSIONS).forEach(function (entry) {
-  const rel = entry[0];
-  const expected = entry[1];
-  const abs = join(ROOT, rel);
-  if (!existsSync(abs)) return;
-  const dims = getDimensions(rel);
-  if (dims.width !== expected.width || dims.height !== expected.height) {
-    console.error(
-      'Wrong size marketplace/' + rel + ': ' + dims.width + 'x' + dims.height +
-        ', expected ' + expected.width + 'x' + expected.height
-    );
-    failed = true;
-  }
-});
+if (CAN_CHECK_DIMENSIONS) {
+  Object.entries(DIMENSIONS).forEach(function (entry) {
+    const rel = entry[0];
+    const expected = entry[1];
+    const abs = join(ROOT, rel);
+    if (!existsSync(abs)) return;
+    const dims = getDimensions(rel);
+    if (dims.width !== expected.width || dims.height !== expected.height) {
+      console.error(
+        'Wrong size marketplace/' + rel + ': ' + dims.width + 'x' + dims.height +
+          ', expected ' + expected.width + 'x' + expected.height
+      );
+      failed = true;
+    }
+  });
+} else {
+  console.log('Skipping image dimension checks on', process.platform, '(run locally on macOS for full validation)');
+}
 
 if (failed) {
   process.exit(1);

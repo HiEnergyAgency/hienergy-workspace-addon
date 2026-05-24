@@ -1,0 +1,52 @@
+name: Marketplace submit
+
+# One-time (or occasional) Marketplace listing submission.
+# Code updates after approval are delivered automatically via CI deploy on main
+# (production deployment ID linked in the Marketplace SDK listing).
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit_for_review:
+        description: Click Submit for review in Store Listing (requires local browser sign-in)
+        type: boolean
+        default: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run validate
+      - run: npm run check:marketplace
+
+  instructions:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Print Marketplace submission steps
+        run: node scripts/marketplace-cli.mjs status --paste
+      - name: Summary
+        run: |
+          {
+            echo "## Marketplace submission (manual browser step required)"
+            echo ""
+            echo "Google has **no API** to submit Store Listing from CI. Run locally:"
+            echo ""
+            echo '```bash'
+            echo "npm run marketplace:submit"
+            echo '```'
+            echo ""
+            echo "After the listing is approved, every merge to \`main\` updates the live add-on via CI deploy."
+          } >> "$GITHUB_STEP_SUMMARY"

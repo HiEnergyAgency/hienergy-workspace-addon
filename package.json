@@ -11,22 +11,30 @@
     "validate": "npm run lint && npm run test && npm run check:manifest",
     "deploy:create": "clasp create --title \"Hi Energy AI Workspace Add-on\" --type standalone",
     "deploy:push": "clasp push",
-    "deploy:ci": "clasp push --force && clasp deploy -i \"$APPS_SCRIPT_DEPLOYMENT_ID\" -d \"main ${GITHUB_SHA:-local}\"",
+    "deploy:ci": "clasp push --force && clasp deploy -i \"$APPS_SCRIPT_DEPLOYMENT_ID\" -d \"Hi Energy AI Workspace Add-on — main ${GITHUB_SHA:-local}\"",
+    "deploy:verify": "node scripts/verify-deployment.mjs",
     "deploy:open": "clasp open-script",
     "check:manifest": "node scripts/check-manifest.js",
     "check:marketplace": "node scripts/check-marketplace-assets.js",
     "create:app": "bash scripts/create-marketplace-app.sh",
     "submit:marketplace": "bash scripts/create-marketplace-app.sh",
+    "marketplace:phase4": "node scripts/marketplace-cli.mjs setup --open",
+    "marketplace:submit": "node scripts/submit-marketplace.mjs --submit",
+    "marketplace:submit:draft": "node scripts/submit-marketplace.mjs",
+    "marketplace:phase4:status": "node scripts/marketplace-cli.mjs status",
+    "marketplace:phase4:paste": "node scripts/marketplace-cli.mjs status --paste",
+    "marketplace:phase4:browser": "node scripts/fill-marketplace-phase4.mjs",
     "create:gcp-project": "bash scripts/create-gcp-project.sh",
     "setup:github-secrets": "bash scripts/setup-github-deploy-secrets.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@google/clasp": "^3.3.0",
     "@types/google-apps-script": "^2.0.5",
     "eslint": "^9.39.1",
     "eslint-plugin-googleappsscript": "^1.0.5",
     "globals": "^16.5.0",
-    "vitest": "^4.1.7",
-    "@google/clasp": "^3.3.0"
+    "playwright": "^1.60.0",
+    "vitest": "^4.1.7"
   }
 }
