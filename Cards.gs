@@ -597,6 +597,17 @@ var HiEnergyCards = (function () {
     return humanize_(type.slice(0, -1));
   }
 
+  function advertiserCompactSubtitle_(attrs) {
+    return [
+      humanize_(advertiserStatus_(attrs)),
+      advertiserPublisher_(attrs),
+      attrs.domain,
+      attrs.network_name
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
   function subtitleForRecord_(type, record) {
     var attrs = attrsForRecord_(record);
     if (type === 'advertisers') {
@@ -823,11 +834,15 @@ var HiEnergyCards = (function () {
           var label = labelForRecord_(type, row);
           var subtitleText = subtitleForRecord_(type, row);
           var topLabel = topLabelForRecord_(type, row);
-          var decorator = CardService.newDecoratedText()
-            .setTopLabel(topLabel)
-            .setText(label)
-            .setBottomLabel(subtitleText)
-            .setWrapText(true);
+          var isAdvertiser = type === 'advertisers';
+          var decorator = CardService.newDecoratedText().setText(label).setWrapText(true);
+          if (isAdvertiser) {
+            decorator.setBottomLabel(advertiserCompactSubtitle_(attrsForRecord_(row)));
+          } else {
+            decorator
+              .setTopLabel(topLabel)
+              .setBottomLabel(subtitleText);
+          }
 
           if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
             var cAttrs = attrsForRecord_(row);
@@ -881,14 +896,15 @@ var HiEnergyCards = (function () {
             }
           }
           section.addWidget(decorator);
-          if (type === 'advertisers' && advertiserActionSlug) {
+          if (isAdvertiser && advertiserActionSlug) {
             section.addWidget(
               CardService.newButtonSet()
                 .addButton(
                   CardService.newTextButton()
-                    .setText('Find contacts')
+                    .setText('Contacts')
                     .setOnClickAction(
                       cardAction_('handleCreateAdvertiserContactsSheet', {
+                        query: labelForRecord_(type, row),
                         advertiser: advertiserActionSlug
                       })
                     )
@@ -1035,7 +1051,10 @@ var HiEnergyCards = (function () {
         .setOnClickAction(
           CardService.newAction()
             .setFunctionName('handleCreateAdvertiserContactsSheet')
-            .setParameters({ advertiser: String(attrs.slug || id) })
+            .setParameters({
+              query: name,
+              advertiser: String(attrs.slug || id)
+            })
         )
     );
     card.addSection(actions);

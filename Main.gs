@@ -316,7 +316,13 @@ function handleAdvertiserDeals(e) {
   var params = (e && e.parameters) || {};
   var name = params.name || 'Advertiser';
   var id = params.id || '';
-  return HiEnergyCards.deals(name, HiEnergyApi.deals(id));
+  return HiEnergyCards.deals(
+    name,
+    HiEnergyApi.searchDeals(name || id, HiEnergyConfig.interactiveSearchLimit, 1, {
+      dealVisibility: 'all',
+      advertiserId: id
+    })
+  );
 }
 
 function handleAdvertiserTransactions(e) {
@@ -442,7 +448,10 @@ function buildMcpToolArgs_(toolName, query, params) {
   if (toolName === 'recommend_report') {
     return { goal: query || params.goal || '' };
   }
-  if (toolName === 'search_deals' || toolName === 'search_transactions' || toolName === 'search_users') {
+  if (toolName === 'search_deals') {
+    return { q: query, limit: HiEnergyConfig.perTypeLimit, deal_visibility: 'all' };
+  }
+  if (toolName === 'search_transactions' || toolName === 'search_users') {
     return { q: query, limit: HiEnergyConfig.perTypeLimit };
   }
   if (toolName === 'universal_search') {
@@ -632,11 +641,16 @@ function handleCreateAdvertiserContactsSheet(e) {
   ensureAuthenticated_();
   var form = (e && e.formInput) || {};
   var params = (e && e.parameters) || {};
-  var advertiser = String(form.advertiserContactsQuery || params.advertiser || '').trim();
-  if (!advertiser) {
-    return HiEnergyCards.error('Missing advertiser', 'Enter an advertiser id or slug.');
+  var query = String(
+    form.advertiserContactsQuery || params.query || params.name || ''
+  ).trim();
+  if (!query) {
+    query = String(params.advertiser || '').trim();
   }
-  return HiEnergyCards.sheetResultResponse(HiEnergySheets.exportAdvertiserContacts(advertiser));
+  if (!query) {
+    return HiEnergyCards.error('Missing advertiser', 'Enter an advertiser name to search contacts.');
+  }
+  return HiEnergyCards.sheetResultResponse(HiEnergySheets.exportAdvertiserContacts(query));
 }
 
 function handleExportCachedAdvertiserContactsToSheet(e) {

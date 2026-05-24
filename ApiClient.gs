@@ -280,29 +280,36 @@ var HiEnergyApi = (function () {
     return withToolFallback_('search_advertisers', toolArgs, '/advertisers', { query: restQuery });
   }
 
-  function deals_(query, limit, page) {
+  function deals_(query, limit, page, options) {
+    options = options || {};
     var rowLimit = limit || HiEnergyConfig.perTypeLimit;
     var normalized = String(query || '').trim();
-    if (!normalized) {
+    if (!normalized && !options.advertiserId) {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter a deal keyword to search.' };
     }
 
+    var visibility =
+      options.dealVisibility || options.deal_visibility || 'all';
     var toolArgs = cleanArgs_({
-      q: normalized,
+      q: normalized || null,
       limit: rowLimit,
-      page: page || null
+      page: page || null,
+      deal_visibility: visibility,
+      advertiser_id: options.advertiserId || options.advertiser_id || null
     });
     var restQuery = cleanArgs_({
-      q: normalized,
+      q: normalized || null,
       limit: rowLimit,
-      page: page || null
+      page: page || null,
+      deal_visibility: visibility,
+      advertiser_id: options.advertiserId || options.advertiser_id || null
     });
 
     return withToolFallback_('search_deals', toolArgs, '/deals', { query: restQuery });
   }
 
-  function searchDeals_(query, limit, page) {
-    return deals_(query, limit || HiEnergyConfig.sheetRowLimit, page || null);
+  function searchDeals_(query, limit, page, options) {
+    return deals_(query, limit || HiEnergyConfig.sheetRowLimit, page || null, options);
   }
 
   function transactions_(query, limit) {

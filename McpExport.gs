@@ -504,7 +504,16 @@ var HiEnergyMcpExport = (function () {
   }
 
   function tablesFromDealsBody_(body) {
-    var rows = (body && body.data) || (Array.isArray(body) ? body : []);
+    var rows = [];
+    if (Array.isArray(body)) {
+      rows = body;
+    } else if (body && Array.isArray(body.data)) {
+      rows = body.data;
+    } else if (body && body.deals && Array.isArray(body.deals.data)) {
+      rows = body.deals.data;
+    } else if (body && body.data && Array.isArray(body.data.data)) {
+      rows = body.data.data;
+    }
     if (!rows.length) {
       return [];
     }

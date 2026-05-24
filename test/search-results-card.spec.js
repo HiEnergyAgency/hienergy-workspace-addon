@@ -185,11 +185,11 @@ describe('searchResultsCard per-section export buttons', function () {
         }
       }
     });
-    const tops = captured
-      .filter(function (e) { return e.method === 'setTopLabel'; })
+    const subtitles = captured
+      .filter(function (e) { return e.method === 'setBottomLabel'; })
       .map(function (e) { return e.args[0]; });
-    expect(tops.some(function (t) { return t === 'Available' || (t && t.indexOf('Available') === 0); })).toBe(true);
-    expect(tops.some(function (t) { return t && t.indexOf('not_applied') !== -1; })).toBe(false);
+    expect(subtitles.some(function (t) { return t && t.indexOf('Available') !== -1; })).toBe(true);
+    expect(subtitles.some(function (t) { return t && t.indexOf('not_applied') !== -1; })).toBe(false);
   });
 });
 

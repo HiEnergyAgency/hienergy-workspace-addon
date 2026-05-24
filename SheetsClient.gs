@@ -267,6 +267,9 @@ var HiEnergySheets = (function () {
     if (Array.isArray(body.data)) {
       return body.data;
     }
+    if (body.deals && Array.isArray(body.deals.data)) {
+      return body.deals.data;
+    }
     if (body.data && Array.isArray(body.data.data)) {
       return body.data.data;
     }
@@ -436,7 +439,10 @@ var HiEnergySheets = (function () {
     }
     if (exportType === 'deals') {
       return function (page, limit) {
-        return HiEnergyApi.searchDeals(query, limit, page);
+        return HiEnergyApi.searchDeals(query, limit, page, {
+          dealVisibility: params.dealVisibility || 'all',
+          advertiserId: params.advertiserId || ''
+        });
       };
     }
     if (exportType === 'transactions') {
@@ -668,24 +674,31 @@ var HiEnergySheets = (function () {
         });
       };
     } else if (exportType === 'deals') {
-      if (!HiEnergyApi || typeof HiEnergyApi.deals !== 'function') {
+      if (!HiEnergyApi || typeof HiEnergyApi.searchDeals !== 'function') {
         return { rowCount: 0 };
       }
-      fetch = function (slug) {
-        return HiEnergyApi.deals(slug, perAdvertiserLimit, 1);
+      fetch = function (row) {
+        var attrs = (row && row.attributes) || row || {};
+        var slug = String(attrs.slug || (row && row.id) || '').trim();
+        var name = String(attrs.display_name || attrs.name || slug || '').trim();
+        return HiEnergyApi.searchDeals(name || slug, perAdvertiserLimit, 1, {
+          dealVisibility: 'all',
+          advertiserId: slug
+        });
       };
     } else {
       return { rowCount: 0 };
     }
 
     var collected = [];
-    for (var i = 0; i < slugs.length; i += 1) {
+    var sources = exportType === 'deals' ? batch : slugs;
+    for (var i = 0; i < sources.length; i += 1) {
       if (deadline && Date.now() > deadline) {
         break;
       }
       var resp;
       try {
-        resp = fetch(slugs[i]);
+        resp = fetch(sources[i]);
       } catch (err) {
         continue;
       }
@@ -754,6 +767,9 @@ var HiEnergySheets = (function () {
       }
 
       var partParams = { query: query };
+      if (type === 'deals') {
+        partParams.dealVisibility = 'all';
+      }
       if (type === 'transactions') {
         partParams.days = session.transactionDays || 30;
         partParams.advertiserId = session.advertiserId || '';
@@ -951,8 +967,8 @@ var HiEnergySheets = (function () {
 
       var dealsAddition = exportSecondaryTab_(
         'deals',
-        { query: normalized },
-        advertiserDeadline,
+        { query: normalized, dealVisibility: 'all' },
+        exportSliceDeadline_(advertiserDeadline, 8000),
         sharedTarget
       );
       if (!dealsAddition.rowCount) {
@@ -980,7 +996,7 @@ var HiEnergySheets = (function () {
       var transactionsAddition = exportSecondaryTab_(
         'transactions',
         { query: normalized, days: 30 },
-        advertiserDeadline,
+        exportSliceDeadline_(advertiserDeadline, 8000),
         sharedTarget
       );
       if (!transactionsAddition.rowCount) {
@@ -1008,7 +1024,7 @@ var HiEnergySheets = (function () {
       var contactsAddition = exportSecondaryTab_(
         'contacts',
         { query: normalized },
-        advertiserDeadline,
+        exportSliceDeadline_(advertiserDeadline, 8000),
         sharedTarget
       );
       if (contactsAddition.rowCount) {
@@ -1040,6 +1056,14 @@ var HiEnergySheets = (function () {
       });
     }
     return exported;
+  }
+
+  function exportSliceDeadline_(sharedDeadline, sliceMs) {
+    var slice = sliceMs || 8000;
+    if (!sharedDeadline || Date.now() < sharedDeadline - 500) {
+      return sharedDeadline || Date.now() + slice;
+    }
+    return Date.now() + slice;
   }
 
   function exportSecondaryTab_(exportType, params, deadline, targetSpreadsheetId) {
@@ -1085,7 +1109,7 @@ var HiEnergySheets = (function () {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter a deal keyword to search.' };
     }
 
-    var exported = exportPaginated_('deals', { query: normalized }, {
+    var exported = exportPaginated_('deals', { query: normalized, dealVisibility: 'all' }, {
       forceNewSheet: !!exportOptions.forceNewSheet
     });
     if (exported.ok) {

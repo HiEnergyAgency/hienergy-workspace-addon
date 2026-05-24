@@ -140,6 +140,7 @@ describe('HiEnergyApi.searchDeals', function () {
     const payload = JSON.parse(toolCalls[0][1].payload);
     expect(payload.params.arguments.q).toBe('coupon');
     expect(payload.params.arguments.limit).toBe(500);
+    expect(payload.params.arguments.deal_visibility).toBe('all');
   });
 });
 

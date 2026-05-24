@@ -332,7 +332,7 @@ describe('HiEnergyCards search results', function () {
     expect(texts).toContain('unnamed@example.com');
   });
 
-  it('shows status and publisher in the advertiser top label', function () {
+  it('shows status and publisher in the advertiser subtitle', function () {
     ctx.HiEnergyCards.searchResults('alo', {
       ok: true,
       body: {
@@ -351,14 +351,15 @@ describe('HiEnergyCards search results', function () {
         }
       }
     });
-    const topLabels = captured
+    const bottomLabels = captured
       .filter(function (entry) {
-        return entry.method === 'setTopLabel';
+        return entry.method === 'setBottomLabel';
       })
       .map(function (entry) {
         return entry.args[0];
       });
-    expect(topLabels).toContain('Active · Pepperjam');
+    expect(bottomLabels.some(function (t) { return t.indexOf('Active') !== -1 && t.indexOf('Pepperjam') !== -1; })).toBe(true);
+    expect(bottomLabels.some(function (t) { return t.indexOf('aloyoga.com') !== -1; })).toBe(true);
   });
 
   it('uses advertiser export handler when scope is advertisers', function () {
