@@ -2,6 +2,16 @@ function onHomepage(e) {
   return ensureAuthenticatedHome_(e);
 }
 
+function openUrlAction_(e) {
+  var url = (e && e.parameters && e.parameters.url) || '';
+  if (!url) {
+    return CardService.newActionResponseBuilder().build();
+  }
+  return CardService.newActionResponseBuilder()
+    .setOpenLink(CardService.newOpenLink().setUrl(url))
+    .build();
+}
+
 function hostAppFromEvent_(e) {
   var common = e && e.commonEventObject;
   if (common && common.hostApp) {

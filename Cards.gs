@@ -892,22 +892,34 @@ var HiEnergyCards = (function () {
     var name = attrs.display_name || attrs.name || 'Advertiser';
     var card = CardService.newCardBuilder().setHeader(header_(name, attrs.domain || ''));
 
+    var publisherId = HiEnergyMcpExport.publisherIdFromAttrs(attrs);
+    var publisherUrl = publisherId
+      ? HiEnergyConfig.appOrigin +
+        (HiEnergyConfig.publisherAdminPath || '/admin/publishers/') +
+        encodeURIComponent(publisherId)
+      : '';
     var facts = [
       ['Network', attrs.network_name],
       ['Status', attrs.program_status || attrs.status],
       ['Commission', attrs.commission_rate || attrs.average_commission_rate],
       ['Domain', attrs.domain],
-      ['Publisher', attrs.publisher_name]
+      ['Publisher', attrs.publisher_name, publisherUrl]
     ].filter(function (pair) { return pair[1]; });
 
     if (facts.length) {
       var section = CardService.newCardSection().setHeader('Overview');
       facts.forEach(function (pair) {
-        section.addWidget(
-          CardService.newKeyValue()
-            .setTopLabel(pair[0])
-            .setContent(String(pair[1]))
-        );
+        var widget = CardService.newKeyValue()
+          .setTopLabel(pair[0])
+          .setContent(String(pair[1]));
+        if (pair[2]) {
+          widget.setOnClickAction(
+            CardService.newAction()
+              .setFunctionName('openUrlAction_')
+              .setParameters({ url: pair[2] })
+          );
+        }
+        section.addWidget(widget);
       });
       card.addSection(section);
     }

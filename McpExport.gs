@@ -31,6 +31,65 @@ var HiEnergyMcpExport = (function () {
     );
   }
 
+  function publisherAdminUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.publisherAdminPath || '/admin/publishers/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function publisherIdFrom_(attrs) {
+    if (!attrs) {
+      return '';
+    }
+    var direct = first_(
+      attrs.publisher_id,
+      attrs.publisher_slug,
+      attrs.publisherId,
+      attrs.publisherSlug
+    );
+    if (direct) {
+      return String(direct);
+    }
+    var nested = attrs.publisher;
+    if (nested && typeof nested === 'object') {
+      var nestedAttrs =
+        (nested.attributes && nested.attributes) ||
+        (nested.data && nested.data.attributes) ||
+        nested;
+      return String(
+        first_(
+          nested.id,
+          nested.slug,
+          nestedAttrs.id,
+          nestedAttrs.slug,
+          nestedAttrs.publisher_id,
+          nestedAttrs.publisher_slug
+        ) || ''
+      );
+    }
+    return '';
+  }
+
+  function publisherCell_(attrs) {
+    var name = first_(
+      attrs.publisher_name,
+      attrs.publisher_display_name,
+      typeof attrs.publisher === 'string' ? attrs.publisher : '',
+      attrs.publisher && (attrs.publisher.name || attrs.publisher.display_name)
+    );
+    var pubId = publisherIdFrom_(attrs);
+    if (pubId) {
+      return hyperlink_(publisherAdminUrl_(pubId), name || pubId);
+    }
+    return name || '';
+  }
+
   function hyperlink_(url, label) {
     var cleanUrl = String(url || '').trim();
     if (!cleanUrl) {
@@ -60,14 +119,12 @@ var HiEnergyMcpExport = (function () {
       return [
         hyperlink_(advertiserHiEnergyUrl_(a.slug || id), name),
         name,
-        first_(a.publisher_name, a.publisher_display_name, a.publisher),
+        publisherCell_(a),
         a.domain || '',
         a.network_name || '',
         first_(a.program_status, a.status, a.advertiser_status),
         a.signup_url || a.join_url || a.application_url || '',
-        a.url || '',
-        a.slug || '',
-        id
+        a.url || ''
       ];
     });
   }
@@ -86,7 +143,6 @@ var HiEnergyMcpExport = (function () {
         ),
         title,
         advertiserName,
-        a.advertiser_id || '',
         first_(a.deal_type, a.type, a.category),
         first_(a.description, a.summary),
         first_(a.code, a.coupon_code, a.promo_code),
@@ -95,8 +151,7 @@ var HiEnergyMcpExport = (function () {
         a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
         a.network_name || '',
-        a.url || a.landing_url || '',
-        id
+        a.url || a.landing_url || ''
       ];
     });
   }
@@ -112,15 +167,13 @@ var HiEnergyMcpExport = (function () {
           advertiserName
         ),
         advertiserName,
-        a.publisher_name || a.publisher || '',
+        publisherCell_(a),
         first_(a.commission_amount, a.commission),
         first_(a.sale_amount, a.amount, a.order_value),
         a.network_name || '',
         a.transaction_date || a.event_date || a.created_at || '',
         a.status || '',
-        first_(a.order_id, a.transaction_id),
-        a.advertiser_id || '',
-        id
+        first_(a.order_id, a.transaction_id)
       ];
     });
   }
@@ -230,10 +283,8 @@ var HiEnergyMcpExport = (function () {
         contactFamilyName_(a),
         a.email || '',
         a.job_title || a.title || '',
-        a.advertiser_id || '',
         a.phone || '',
-        linkedinProfile_(a),
-        id
+        linkedinProfile_(a)
       ];
     });
   }
@@ -253,9 +304,7 @@ var HiEnergyMcpExport = (function () {
         'Network',
         'Status',
         'Signup URL',
-        'External URL',
-        'Slug',
-        'ID'
+        'External URL'
       ],
       rows: advertiserRows_
     },
@@ -266,7 +315,6 @@ var HiEnergyMcpExport = (function () {
         'Advertiser Hi Energy link',
         'Title',
         'Advertiser',
-        'Advertiser ID',
         'Type',
         'Description',
         'Code',
@@ -275,8 +323,7 @@ var HiEnergyMcpExport = (function () {
         'Ends',
         'Status',
         'Network',
-        'Landing URL',
-        'ID'
+        'Landing URL'
       ],
       rows: dealRows_
     },
@@ -291,9 +338,7 @@ var HiEnergyMcpExport = (function () {
         'Network',
         'Date',
         'Status',
-        'Order ID',
-        'Advertiser ID',
-        'ID'
+        'Order ID'
       ],
       rows: transactionRows_
     },
@@ -307,10 +352,8 @@ var HiEnergyMcpExport = (function () {
         'Family name',
         'Email',
         'Title',
-        'Advertiser ID',
         'Phone',
-        'LinkedIn profile',
-        'ID'
+        'LinkedIn profile'
       ],
       rows: contactRows_
     }
@@ -783,6 +826,8 @@ var HiEnergyMcpExport = (function () {
     tablesFromSearchBody: tablesFromSearchBody_,
     tablesFromMcpResult: tablesFromMcpResult_,
     tablesFromGoogleContacts: tablesFromGoogleContacts_,
+    publisherIdFromAttrs: publisherIdFrom_,
+    publisherAdminUrl: publisherAdminUrl_,
     createSheetTitle: createSheetTitle_,
     buildPartnershipDraft: buildPartnershipDraft_,
     cacheSearchResult: cacheSearchResult_,

@@ -103,12 +103,12 @@ describe('HiEnergyMcpExport', function () {
     expect(tables[0].headers[1]).toBe('Advertiser company');
     expect(tables[0].headers[2]).toBe('Name');
     expect(tables[0].headers[3]).toBe('Given name');
-    expect(tables[0].headers[9]).toBe('LinkedIn profile');
+    expect(tables[0].headers[8]).toBe('LinkedIn profile');
     expect(tables[0].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/a/nike","Nike")');
     expect(tables[0].rows[0][1]).toBe('Nike');
     expect(tables[0].rows[0][2]).toBe('Alex Smith');
     expect(tables[0].rows[0][3]).toBe('Alex');
-    expect(tables[0].rows[0][9]).toBe('https://www.linkedin.com/in/alexsmith');
+    expect(tables[0].rows[0][8]).toBe('https://www.linkedin.com/in/alexsmith');
   });
 
   it('fills advertiser company from export query when contact rows omit it', function () {
