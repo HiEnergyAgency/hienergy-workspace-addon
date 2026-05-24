@@ -334,7 +334,7 @@ var HiEnergyCards = (function () {
     var isSlides = hostApp === 'SLIDES';
     var isDocs = hostApp === 'DOCS';
 
-    var subtitle = HiEnergyConfig.brandTagline;
+    var subtitle = 'Advertisers · deals · transactions · contacts';
     if (isSheets) {
       subtitle = 'Search and export into this spreadsheet';
     } else if (isSlides) {
@@ -343,7 +343,7 @@ var HiEnergyCards = (function () {
       subtitle = 'Look up Hi Energy AI from your document';
     }
 
-    var card = CardService.newCardBuilder().setHeader(header_('Search', subtitle));
+    var card = CardService.newCardBuilder().setHeader(header_('Hi Energy AI', subtitle));
 
     var scopeInput = CardService.newSelectionInput()
       .setType(CardService.SelectionInputType.DROPDOWN)
@@ -359,23 +359,27 @@ var HiEnergyCards = (function () {
       scopeInput.addItem('Messages', 'messages', false);
     }
 
-    var section = CardService.newCardSection()
+    var searchSection = CardService.newCardSection()
       .addWidget(
         CardService.newTextInput()
           .setFieldName('query')
-          .setTitle('Search query')
-          .setHint('e.g. Nike, nike.com, summer sale')
+          .setTitle('Search')
+          .setHint('Brand, domain, or keyword — e.g. Nike, nike.com, summer sale')
           .setValue(prefill || '')
       )
       .addWidget(scopeInput)
-      .addWidget(filledButton_('Search', cardAction_('handleSearch')));
+      .addWidget(
+        CardService.newButtonSet().addButton(
+          filledButton_('Search', cardAction_('handleSearch'))
+        )
+      );
 
-    card.addSection(section);
+    card.addSection(searchSection);
 
     if (!prefill) {
-      var examples = CardService.newCardSection().setHeader('Try an example');
+      var exampleSet = CardService.newButtonSet();
       ['Nike', 'Sephora', 'Adidas', 'summer sale'].forEach(function (example) {
-        examples.addWidget(
+        exampleSet.addButton(
           CardService.newTextButton()
             .setText(example)
             .setOnClickAction(
@@ -383,70 +387,68 @@ var HiEnergyCards = (function () {
             )
         );
       });
-      card.addSection(examples);
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Examples')
+          .addWidget(exampleSet)
+      );
     }
 
-    var quickActions = CardService.newCardSection().setHeader('Quick actions');
-    quickActions.addWidget(
-      CardService.newTextButton()
-        .setText(isSheets ? 'Create tabs in this sheet' : 'Create a Google Sheet')
-        .setOnClickAction(cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null))
+    var primaryActionLabel = isSheets ? 'Create tabs in this sheet' : 'Create a Google Sheet';
+    var primarySection = CardService.newCardSection().addWidget(
+      filledButton_(
+        primaryActionLabel,
+        cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null)
+      )
     );
+    card.addSection(primarySection);
+
+    var quickButtons = CardService.newButtonSet();
     if (isGmail) {
-      quickActions.addWidget(
+      quickButtons.addButton(
         CardService.newTextButton()
           .setText('Draft email')
           .setOnClickAction(cardAction_('onDraftEmailAction'))
       );
     }
-    quickActions.addWidget(
-      CardService.newTextButton()
-        .setText('Reports')
-        .setOnClickAction(cardAction_('onReports'))
+    quickButtons
+      .addButton(
+        CardService.newTextButton()
+          .setText('Reports')
+          .setOnClickAction(cardAction_('onReports'))
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('MCP tools')
+          .setOnClickAction(cardAction_('onMcpTools'))
+      )
+      .addButton(
+        CardService.newTextButton()
+          .setText('Open app')
+          .setOpenLink(
+            CardService.newOpenLink()
+              .setUrl(HiEnergyConfig.appOrigin)
+              .setOpenAs(CardService.OpenAs.FULL_SIZE)
+          )
+      );
+    card.addSection(
+      CardService.newCardSection()
+        .setHeader('More')
+        .addWidget(quickButtons)
     );
-    quickActions.addWidget(
-      CardService.newTextButton()
-        .setText('Browse MCP tools')
-        .setOnClickAction(cardAction_('onMcpTools'))
-    );
-    quickActions.addWidget(
-      CardService.newTextButton()
-        .setText('Open ' + HiEnergyConfig.brandName)
-        .setOpenLink(
-          CardService.newOpenLink()
-            .setUrl(HiEnergyConfig.appOrigin)
-            .setOpenAs(CardService.OpenAs.FULL_SIZE)
-        )
-    );
-    card.addSection(quickActions);
 
+    var tip = '';
     if (isSheets) {
-      card.addSection(
-        sectionText_(
-          'Search results include a one-click <b>Export to this spreadsheet</b> button. ' +
-            'Use <b>Create tabs</b> for advertisers, deals, transactions, and contacts in one go.'
-        )
-      );
+      tip = 'Tip: search results include <b>Export to this spreadsheet</b>. Use <b>Create tabs</b> to export advertisers, deals, transactions, and contacts in one go.';
     } else if (isSlides) {
-      card.addSection(
-        sectionText_(
-          'Open advertisers in <b>' + HiEnergyConfig.brandName + '</b> for screenshots, ' +
-            'or export search results to a new sheet you can chart and embed in your slides.'
-        )
-      );
+      tip = 'Tip: open advertisers in <b>Hi Energy AI</b> for screenshots, or export to a sheet you can chart and embed in slides.';
     } else if (isDocs) {
-      card.addSection(
-        sectionText_(
-          'Click an advertiser to open the Hi Energy AI page, or copy details into your document. ' +
-            'Export search results to a new sheet for tables you can paste into Docs.'
-        )
-      );
+      tip = 'Tip: open the Hi Energy AI page for any advertiser, or export to a sheet for tables you can paste into Docs.';
     } else if (isGmail) {
-      card.addSection(
-        sectionText_(
-          'Open an email to see sender context, or search Hi Energy AI advertisers, deals, and transactions below.'
-        )
-      );
+      tip = 'Tip: open an email to see sender context — or search advertisers, deals, and transactions above.';
+    }
+    if (tip) {
+      card.addSection(sectionText_(tip));
     }
 
     return card.build();
