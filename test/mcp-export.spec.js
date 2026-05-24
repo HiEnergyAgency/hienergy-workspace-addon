@@ -46,10 +46,10 @@ describe('HiEnergyMcpExport', function () {
 
     expect(tables).toHaveLength(2);
     expect(tables[0].headers[0]).toBe('Hi Energy link');
-    expect(tables[0].rows[0][0]).toBe('https://app.hienergy.ai/a/1');
+    expect(tables[0].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/a/1","Acme")');
     expect(tables[0].rows[0][1]).toBe('Acme');
     expect(tables[1].headers[0]).toBe('Hi Energy admin link');
-    expect(tables[1].rows[0][0]).toBe('https://app.hienergy.ai/admin/deals/2');
+    expect(tables[1].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/deals/2","Spring sale")');
     expect(tables[1].rows[0][2]).toBe('Spring sale');
   });
 
@@ -104,7 +104,7 @@ describe('HiEnergyMcpExport', function () {
     expect(tables[0].headers[2]).toBe('Name');
     expect(tables[0].headers[3]).toBe('Given name');
     expect(tables[0].headers[9]).toBe('LinkedIn profile');
-    expect(tables[0].rows[0][0]).toBe('https://app.hienergy.ai/a/nike');
+    expect(tables[0].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/a/nike","Nike")');
     expect(tables[0].rows[0][1]).toBe('Nike');
     expect(tables[0].rows[0][2]).toBe('Alex Smith');
     expect(tables[0].rows[0][3]).toBe('Alex');
