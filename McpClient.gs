@@ -71,7 +71,11 @@ var HiEnergyMcp = (function () {
     if (result.structuredContent !== undefined && result.structuredContent !== null) {
       return result.structuredContent;
     }
-    return parseContent_(result.content);
+    var parsed = parseContent_(result.content);
+    if (parsed !== null) {
+      return parsed;
+    }
+    return result;
   }
 
   function extractErrorMessage_(result) {
