@@ -1,0 +1,45 @@
+{
+  "listingType": "workspace_addon",
+  "appName": "Hi Energy AI Workspace Add-on",
+  "tagline": "Search affiliate programs, advertisers, and deals from Gmail",
+  "shortDescription": "Search Hi Energy AI advertisers, deals, and transactions from Gmail. Connect your account, run universal search, and see email sender context with contacts and recent messages.",
+  "category": "BUSINESS_TOOLS",
+  "pricingModel": "FREE",
+  "appsScriptProjectId": "1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4",
+  "supportUrl": "https://app.hienergy.ai",
+  "documentationUrl": "https://app.hienergy.ai/api_documentation/mcp",
+  "privacyPolicyUrl": "https://app.hienergy.ai/privacy_policy",
+  "termsOfServiceUrl": "https://app.hienergy.ai/terms_of_service",
+  "marketingUrl": "https://hienergy.ai",
+  "primaryColor": "#8b5cf6",
+  "secondaryColor": "#6d28d9",
+  "assets": {
+    "logo120": "assets/logo-120.png",
+    "logo128": "assets/logo-128.png",
+    "screenshots": [
+      {
+        "file": "assets/marketplace-screenshot-signin.png",
+        "caption": "Sign in with Hi Energy AI from the Gmail sidebar"
+      },
+      {
+        "file": "assets/marketplace-screenshot-search.png",
+        "caption": "Universal search across advertisers and deals"
+      },
+      {
+        "file": "assets/marketplace-screenshot-gmail-context.png",
+        "caption": "Email sender context with contacts and recent messages"
+      }
+    ]
+  },
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.addons.execute",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/contacts.readonly",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "universalActions": ["Search", "Settings", "MCP Tools"],
+  "supportedApps": ["gmail"],
+  "visibilityOptions": ["PRIVATE", "DOMAIN", "PUBLIC"]
+}

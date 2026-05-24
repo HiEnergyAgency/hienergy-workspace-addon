@@ -113,6 +113,28 @@ var HiEnergyCards = (function () {
         )
     );
     card.addSection(
+      CardService.newCardSection()
+        .setHeader('Legal')
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Privacy policy')
+            .setOpenLink(
+              CardService.newOpenLink()
+                .setUrl(HiEnergyConfig.privacyPolicyUrl)
+                .setOpenAs(CardService.OpenAs.FULL_SIZE)
+            )
+        )
+        .addWidget(
+          CardService.newTextButton()
+            .setText('Terms of service')
+            .setOpenLink(
+              CardService.newOpenLink()
+                .setUrl(HiEnergyConfig.termsOfServiceUrl)
+                .setOpenAs(CardService.OpenAs.FULL_SIZE)
+            )
+        )
+    );
+    card.addSection(
       sectionText_(
         'All ' + HiEnergyConfig.brandName + ' requests go through the MCP server (<b>POST /mcp</b>) using Auth0 bearer tokens or an API key. Tokens are stored per Google user.'
       )

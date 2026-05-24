@@ -9,10 +9,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "validate": "npm run lint && npm run test && npm run check:manifest",
-    "deploy:create": "clasp create --title \"Hi Energy AI\" --type standalone",
+    "deploy:create": "clasp create --title \"Hi Energy AI Workspace Add-on\" --type standalone",
     "deploy:push": "clasp push",
+    "deploy:ci": "clasp push --force && clasp deploy -i \"$APPS_SCRIPT_DEPLOYMENT_ID\" -d \"main ${GITHUB_SHA:-local}\"",
     "deploy:open": "clasp open-script",
-    "check:manifest": "node scripts/check-manifest.js"
+    "check:manifest": "node scripts/check-manifest.js",
+    "check:marketplace": "node scripts/check-marketplace-assets.js",
+    "create:app": "bash scripts/create-marketplace-app.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -20,6 +23,7 @@
     "eslint": "^9.39.1",
     "eslint-plugin-googleappsscript": "^1.0.5",
     "globals": "^16.5.0",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "@google/clasp": "^3.3.0"
   }
 }

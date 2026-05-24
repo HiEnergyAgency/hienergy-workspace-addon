@@ -6,8 +6,8 @@ const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'appsscript.json'), 
 
 describe('appsscript.json manifest', function () {
   it('registers Hi Energy AI branding', function () {
-    expect(manifest.addOns.common.name).toBe('Hi Energy AI');
-    expect(manifest.addOns.common.logoUrl).toContain('hienergy-logo');
+    expect(manifest.addOns.common.name).toBe('Hi Energy AI Workspace Add-on');
+    expect(manifest.addOns.common.logoUrl).toContain('googleusercontent.com');
     expect(manifest.addOns.common.layoutProperties.primaryColor).toBe('#8b5cf6');
   });
 
@@ -15,6 +15,8 @@ describe('appsscript.json manifest', function () {
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/gmail.readonly');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/contacts.readonly');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.external_request');
+    expect(manifest.urlFetchWhitelist).toContain('https://app.hienergy.ai/');
+    expect(manifest.addOns.common.openLinkUrlPrefixes).toContain('https://app.hienergy.ai/');
   });
 
   it('enables the People advanced service', function () {

@@ -28,3 +28,47 @@ jobs:
 
       - name: Validate manifest wiring
         run: npm run check:manifest
+
+  deploy:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure clasp project
+        run: cp .github/clasp.json .clasp.json
+
+      - name: Configure clasp credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ]; then
+            echo "::error::CLASPRC_JSON secret is missing. See README → Continuous deployment."
+            exit 1
+          fi
+          echo "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: Push to Apps Script
+        run: npx clasp push --force
+
+      - name: Update production deployment
+        env:
+          APPS_SCRIPT_DEPLOYMENT_ID: ${{ secrets.APPS_SCRIPT_DEPLOYMENT_ID }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          if [ -z "$APPS_SCRIPT_DEPLOYMENT_ID" ]; then
+            echo "::error::APPS_SCRIPT_DEPLOYMENT_ID secret is missing. See README → Continuous deployment."
+            exit 1
+          fi
+          npx clasp deploy \
+            -i "$APPS_SCRIPT_DEPLOYMENT_ID" \
+            -d "Hi Energy AI Workspace Add-on — main ${GITHUB_SHA:0:7}"

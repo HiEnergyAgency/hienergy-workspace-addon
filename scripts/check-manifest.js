@@ -44,8 +44,8 @@ if (missing.length) {
   process.exit(1);
 }
 
-if (manifest.addOns.common.name !== 'Hi Energy AI') {
-  console.error('Manifest add-on name must be "Hi Energy AI".');
+if (manifest.addOns.common.name !== 'Hi Energy AI Workspace Add-on') {
+  console.error('Manifest add-on name must be "Hi Energy AI Workspace Add-on".');
   process.exit(1);
 }
 

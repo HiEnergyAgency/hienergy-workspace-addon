@@ -91,9 +91,11 @@ User-facing branding is centralized in `Config.gs`:
 
 | Constant | Value |
 |----------|-------|
-| `brandName` | Hi Energy AI |
+| `brandName` | Hi Energy AI Workspace Add-on |
 | `brandTagline` | Search affiliate programs, advertisers, and deals |
-| `brandLogoUrl` | `https://app.hienergy.ai/branding/hienergy-logo-black.svg` |
+| `brandLogoUrl` | Same as Chrome extension icon (128×128 PNG via Chrome Web Store CDN) |
+| `privacyPolicyUrl` | `https://app.hienergy.ai/privacy_policy` |
+| `termsOfServiceUrl` | `https://app.hienergy.ai/terms_of_service` |
 | `brandPrimaryColor` | `#8b5cf6` |
 | `brandSecondaryColor` | `#6d28d9` |
 
@@ -159,7 +161,7 @@ Fix any lint or spec failures before deploying.
 ```bash
 clasp login
 cp .clasp.json.example .clasp.json
-clasp create --title "Hi Energy AI" --type standalone
+clasp create --title "Hi Energy AI Workspace Add-on" --type standalone
 ```
 
 Or: `npm run deploy:create`
@@ -236,7 +238,7 @@ Use a test deployment before sharing widely:
 2. Click **Install** and pick a configuration
 3. Open Gmail (or Drive/Docs) and install the test add-on for your account
 4. Verify:
-   - Sidebar shows **Hi Energy AI** branding
+   - Sidebar shows **Hi Energy AI Workspace Add-on** branding
    - **Sign in with Hi Energy AI** completes Auth0 login
    - Search returns results via MCP `universal_search`
    - Opening an email shows Gmail context and contact lookup
@@ -265,17 +267,29 @@ Or create a new deployment version in the Apps Script UI under **Deploy** → **
 
 ### 8. Google Workspace Marketplace (optional)
 
-To publish publicly on the [Google Workspace Marketplace](https://workspace.google.com/marketplace):
+Publishing assets and copy live in [`marketplace/`](./marketplace/). Start with [`marketplace/checklist.md`](./marketplace/checklist.md).
+
+| Deliverable | Location |
+|-------------|----------|
+| Logos (120×120, 128×128 PNG) | `marketplace/assets/logo-*.png` |
+| Screenshots (1280×800) | `marketplace/assets/marketplace-screenshot-*.png` |
+| Listing copy | `marketplace/listing-copy.md` |
+| OAuth scope justifications | `marketplace/oauth-verification.md` |
+| Demo video script | `marketplace/demo-video-script.md` |
+| Privacy policy + ToS | https://app.hienergy.ai/privacy_policy and `/terms_of_service` |
+| Host-ready HTML | `marketplace/hosted/*.html` |
+| SDK field template | `marketplace/listing-config.json` |
+
+**Steps (summary):**
 
 1. Complete a production deployment (step 7)
-2. Open [Google Cloud Console](https://console.cloud.google.com) for the GCP project linked to your Apps Script
-3. Configure the **OAuth consent screen** (app name: **Hi Energy AI**, logo, privacy policy, support email)
-4. Submit for **OAuth verification** — required for sensitive scopes (`gmail.readonly`, `contacts.readonly`)
-5. In [Google Workspace Marketplace SDK](https://console.cloud.google.com/marketplace), create a listing:
-   - App name: **Hi Energy AI**
-   - Logo: `https://app.hienergy.ai/branding/hienergy-logo-black.svg`
-   - Link to your Apps Script deployment
-6. Complete Google's add-on review checklist (privacy, data use, screenshots)
+2. Link a **standard GCP project** to Apps Script (Project Settings → GCP project)
+3. Configure **OAuth consent screen** — upload `logo-120.png`, set privacy/terms to `https://app.hienergy.ai/privacy_policy` and `https://app.hienergy.ai/terms_of_service`
+4. Submit **OAuth verification** with scope text from `oauth-verification.md` and a demo video per `demo-video-script.md`
+5. Create listing in [Google Workspace Marketplace SDK](https://console.cloud.google.com/marketplace) using `listing-copy.md` and assets above
+6. Link Apps Script ID `1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4`
+
+Screenshot mockups are included for draft listings; replace with real Gmail captures before final public review when possible.
 
 Marketplace review can take several weeks. Internal/test deployments do not require marketplace listing.
 
@@ -284,7 +298,7 @@ Marketplace review can take several weeks. Internal/test deployments do not requ
 | Step | Verify |
 |------|--------|
 | Auth0 callback | `usercallback` URL matches script ID exactly |
-| Branding | Sidebar title is **Hi Energy AI** with purple theme |
+| Branding | Sidebar title is **Hi Energy AI Workspace Add-on** with purple theme |
 | MCP | Settings shows `https://app.hienergy.ai/mcp` |
 | Universal search | Search scope "Everything" returns advertisers/deals |
 | Gmail context | Opening an email shows sender + domain actions |
@@ -384,7 +398,7 @@ clasp login
 cd hienergy-workspace-addon
 npm install
 cp .clasp.json.example .clasp.json
-clasp create --title "Hi Energy AI" --type standalone
+clasp create --title "Hi Energy AI Workspace Add-on" --type standalone
 clasp push
 ```
 
@@ -413,7 +427,38 @@ Spec coverage:
 | `test/main.spec.js` | MCP tool argument mapping |
 | `test/manifest.spec.js` | `appsscript.json` scopes and triggers |
 
-CI runs `npm run validate` on every push to `main` via GitHub Actions.
+CI runs `npm run validate` on every push to `main` via GitHub Actions. **Merges to `main` also deploy** to Apps Script (`clasp push` + update the production deployment).
+
+### Continuous deployment (merge to `main`)
+
+On every push to `main`, GitHub Actions:
+
+1. Runs `npm run validate`
+2. `clasp push --force` to the Apps Script project in `.github/clasp.json`
+3. Updates the production deployment via `clasp deploy -i …`
+
+**One-time setup** — add repository secrets at GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|--------|--------|
+| `CLASPRC_JSON` | Full contents of `~/.clasprc.json` after `clasp login` |
+| `APPS_SCRIPT_DEPLOYMENT_ID` | `AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc` |
+
+Print copy-paste instructions locally:
+
+```bash
+chmod +x scripts/print-clasp-github-secrets.sh
+./scripts/print-clasp-github-secrets.sh
+```
+
+Or with GitHub CLI:
+
+```bash
+gh secret set CLASPRC_JSON < ~/.clasprc.json
+gh secret set APPS_SCRIPT_DEPLOYMENT_ID --body 'AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc'
+```
+
+Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login` and update the secret). Auth0 script properties are **not** in git — set those once in the Apps Script UI.
 
 Or run the setup helper from the Apps Script editor (edit placeholder values first):
 
@@ -453,7 +498,7 @@ curl -X POST https://app.hienergy.ai/mcp \
 | Gmail search empty | Scope `gmail.readonly` must be granted; user may need to re-authorize |
 | MCP tool errors | Check Settings for MCP URL; try **Browse MCP tools** to verify `tools/list` works |
 | People API errors | Enable People API advanced service in Apps Script editor |
-| Wrong add-on name in sidebar | Redeploy after `clasp push`; manifest name must be **Hi Energy AI** |
+| Wrong add-on name in sidebar | Redeploy after `clasp push`; manifest name must be **Hi Energy AI Workspace Add-on** |
 | `Invalid container file type` | Use `--type standalone`, not `workspace-add-on` (removed in clasp 3.x) |
 | `User has not enabled the Apps Script API` | Enable at [script.google.com/home/usersettings](https://script.google.com/home/usersettings), wait 1–2 min, retry |
 | `Project settings not found` | Run `clasp create` first so `.clasp.json` gets a `scriptId` |
