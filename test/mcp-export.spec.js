@@ -53,6 +53,31 @@ describe('HiEnergyMcpExport', function () {
     expect(tables[1].headers[0]).toBe('Hi Energy admin link');
     expect(tables[1].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/deals/2","Spring sale")');
     expect(tables[1].rows[0][2]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/deals/2","Spring sale")');
+    expect(tables[1].headers).toContain('Publisher');
+  });
+
+  it('exports deal publisher with admin link when publisher id is present', function () {
+    const tables = ctx.HiEnergyMcpExport.tablesFromMcpResult('search_deals', {
+      data: [
+        {
+          id: '99',
+          attributes: {
+            title: 'Holiday code',
+            advertiser_name: 'Nike',
+            advertiser_slug: 'nike',
+            publisher_name: 'Pepperjam',
+            publisher_id: 'pepperjam'
+          }
+        }
+      ]
+    });
+
+    expect(tables).toHaveLength(1);
+    const publisherIndex = tables[0].headers.indexOf('Publisher');
+    expect(publisherIndex).toBeGreaterThan(-1);
+    expect(tables[0].rows[0][publisherIndex]).toBe(
+      '=HYPERLINK("https://app.hienergy.ai/admin/publishers/pepperjam","Pepperjam")'
+    );
   });
 
   it('builds a partnership draft from advertiser context', function () {
@@ -133,6 +158,30 @@ describe('HiEnergyMcpExport', function () {
     );
 
     expect(tables[0].rows[0][2]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/nike","Nike")');
+  });
+
+  it('maps department contacts to email in Name and role in Title', function () {
+    const tables = ctx.HiEnergyMcpExport.tablesFromMcpResult('get_advertiser_contacts', {
+      data: [
+        {
+          id: '887101',
+          attributes: {
+            name: 'Sales',
+            email: 'sales@adidas.mx',
+            advertiser_id: 'adidas',
+            advertiser_name: 'adidas latam',
+            status: 'do_not_mail'
+          }
+        }
+      ]
+    });
+
+    expect(tables[0].rows[0][1]).toBe('do_not_mail');
+    expect(tables[0].rows[0][3]).toBe(
+      '=HYPERLINK("https://app.hienergy.ai/admin/contacts/887101","sales@adidas.mx")'
+    );
+    expect(tables[0].rows[0][6]).toBe('sales@adidas.mx');
+    expect(tables[0].rows[0][7]).toBe('Sales');
   });
 });
 

@@ -29,6 +29,13 @@ function createCardServiceMock(captured) {
       'setOpenLink',
       'setUrl',
       'setOpenAs',
+      'setAltText',
+      'setIcon',
+      'setMaterialIcon',
+      'setName',
+      'setFill',
+      'setImageButtonStyle',
+      'setStartIcon',
       'build'
     ].forEach(function (method) {
       obj[method] = function () {
@@ -65,6 +72,20 @@ function createCardServiceMock(captured) {
     newTextButton: function () {
       return chain('textButton');
     },
+    newImageButton: function () {
+      return chain('imageButton');
+    },
+    newMaterialIcon: function () {
+      return chain('materialIcon');
+    },
+    newIconImage: function () {
+      const icon = chain('iconImage');
+      icon.setMaterialIcon = function () {
+        icon.__calls.push({ method: 'setMaterialIcon', args: Array.prototype.slice.call(arguments) });
+        return icon;
+      };
+      return icon;
+    },
     newDecoratedText: function () {
       return chain('decoratedText');
     },
@@ -88,7 +109,23 @@ function createCardServiceMock(captured) {
     SelectionInputType: { DROPDOWN: 'DROPDOWN' },
     ImageStyle: { CIRCLE: 'CIRCLE' },
     OpenAs: { FULL_SIZE: 'FULL_SIZE' },
-    TextButtonStyle: { FILLED: 'FILLED', TEXT: 'TEXT' }
+    TextButtonStyle: { FILLED: 'FILLED', TEXT: 'TEXT' },
+    ImageButtonStyle: { BORDERLESS: 'BORDERLESS' },
+    Icon: {
+      BOOKMARK: 'BOOKMARK',
+      CONFIRMATION_NUMBER_ICON: 'CONFIRMATION_NUMBER_ICON',
+      DESCRIPTION: 'DESCRIPTION',
+      DOLLAR: 'DOLLAR',
+      EMAIL: 'EMAIL',
+      INVITE: 'INVITE',
+      MAP_PIN: 'MAP_PIN',
+      MEMBERSHIP: 'MEMBERSHIP',
+      OFFER: 'OFFER',
+      PERSON: 'PERSON',
+      SHOPPING_CART: 'SHOPPING_CART',
+      STAR: 'STAR',
+      STORE: 'STORE'
+    }
   };
 }
 
@@ -112,7 +149,8 @@ function actionNames(captured) {
 function buttonTexts(captured) {
   return captured
     .filter(function (e) {
-      return e.method === 'setText';
+      return e.method === 'setAltText' ||
+        (e.method === 'setText' && e.args[0] && e.args[0] !== ' ');
     })
     .map(function (e) {
       return e.args[0];
@@ -265,7 +303,7 @@ describe('sheetResultCard add-more visibility', function () {
       .filter(function (e) { return e.method === 'setTitle'; })
       .map(function (e) { return String(e.args[0] || ''); });
     expect(titles.some(function (t) { return t.indexOf('Paused at 320') !== -1; })).toBe(true);
-    expect(allText.some(function (t) { return t.indexOf('Add more') !== -1; })).toBe(true);
+    expect(buttonTexts(captured)).toContain('Add more');
     expect(allText.some(function (t) { return t.indexOf('Advertisers 150') !== -1; })).toBe(false);
 
     const bottoms = captured

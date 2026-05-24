@@ -119,4 +119,77 @@ describe('HiEnergySheets in Sheets host', function () {
     expect(result.usedActiveSpreadsheet).toBe(true);
     expect(result.url).toContain('active456');
   });
+
+  it('appends with a range sized to the batch, not through the last row index', function () {
+    var rangeCalls = [];
+    var sheet = {
+      name: 'Advertisers',
+      getLastRow: function () {
+        return 2200;
+      },
+      getLastColumn: function () {
+        return 2;
+      },
+      getRange: function (row, col, numRows, numCols) {
+        rangeCalls.push({ row: row, col: col, numRows: numRows, numCols: numCols });
+        return {
+          getValues: function () {
+            return [['Name', 'Status']];
+          },
+          setValues: function (v) {
+            sheet.appended = v;
+          },
+          setFontWeight: function () {}
+        };
+      },
+      setFrozenRows: function () {}
+    };
+    var spreadsheet = {
+      getUrl: function () {
+        return 'https://docs.google.com/spreadsheets/d/active789/edit';
+      },
+      getId: function () {
+        return 'active789';
+      },
+      getSheetByName: function () {
+        return sheet;
+      },
+      insertSheet: function () {
+        throw new Error('Should not insert when sheet exists');
+      }
+    };
+
+    var runtime = createGasContext({
+      userProperties: { HIENERGY_HOST_APP: 'SHEETS' }
+    });
+    runtime.context.SpreadsheetApp = {
+      getActiveSpreadsheet: function () {
+        return spreadsheet;
+      },
+      create: function () {
+        throw new Error('Should not create a new spreadsheet');
+      }
+    };
+    loadGasFiles(runtime.context, ['Config.gs', 'McpExport.gs', 'SheetsClient.gs']);
+
+    var rows = [];
+    for (var i = 0; i < 100; i += 1) {
+      rows.push(['Row ' + i, 'active']);
+    }
+
+    var result = runtime.context.HiEnergySheets.createFromTables(
+      'Test',
+      [{ name: 'Advertisers', headers: ['Name', 'Status'], rows: rows }],
+      { append: true }
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.rowCount).toBe(100);
+    expect(rangeCalls.length).toBeGreaterThan(0);
+    var writeCall = rangeCalls[rangeCalls.length - 1];
+    expect(writeCall.row).toBe(2201);
+    expect(writeCall.numRows).toBe(100);
+    expect(writeCall.numCols).toBe(2);
+    expect(sheet.appended).toHaveLength(100);
+  });
 });

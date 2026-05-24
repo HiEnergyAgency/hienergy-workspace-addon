@@ -45,10 +45,39 @@ var HiEnergySheets = (function () {
     if (!values.length) {
       return 0;
     }
-    sheet.getRange(1, 1, values.length, safeHeaders.length).setValues(values);
+    var endRow = values.length;
+    sheet.getRange(1, 1, endRow, safeHeaders.length).setValues(values);
     sheet.getRange(1, 1, 1, safeHeaders.length).setFontWeight('bold');
     sheet.setFrozenRows(1);
     return values.length - 1;
+  }
+
+  function sheetHeadersMatch_(sheet, headers) {
+    var expected = headers || [];
+    if (!expected.length) {
+      return true;
+    }
+    var lastCol = sheet.getLastColumn();
+    if (!lastCol || lastCol < expected.length) {
+      return false;
+    }
+    var existing = sheet.getRange(1, 1, 1, expected.length).getValues()[0];
+    for (var i = 0; i < expected.length; i += 1) {
+      if (String(existing[i] || '').trim() !== String(expected[i] || '').trim()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function ensureSheetHeaders_(sheet, headers) {
+    var safeHeaders = (headers || []).map(clampCell_);
+    if (!safeHeaders.length) {
+      return;
+    }
+    sheet.getRange(1, 1, 1, safeHeaders.length).setValues([safeHeaders]);
+    sheet.getRange(1, 1, 1, safeHeaders.length).setFontWeight('bold');
+    sheet.setFrozenRows(1);
   }
 
   function activeSpreadsheet_() {
@@ -132,8 +161,12 @@ var HiEnergySheets = (function () {
     if (lastRow === 0) {
       return writeTable_(sheet, headers, rows);
     }
+    if (!sheetHeadersMatch_(sheet, headers)) {
+      ensureSheetHeaders_(sheet, headers);
+    }
     var startRow = lastRow + 1;
     var safeRows = clampRows_(rows, headers.length);
+    // getRange(row, column, numRows, numColumns) — third arg is row count, not end row.
     sheet.getRange(startRow, 1, safeRows.length, headers.length).setValues(safeRows);
     return safeRows.length;
   }
@@ -173,7 +206,8 @@ var HiEnergySheets = (function () {
     return tables;
   }
 
-  function createFromTables_(title, tables) {
+  function createFromTables_(title, tables, options) {
+    options = options || {};
     if (!tables || !tables.length) {
       return { ok: false, error: 'NO_DATA', message: 'No rows to export.' };
     }
@@ -181,7 +215,10 @@ var HiEnergySheets = (function () {
     try {
       var active = activeSpreadsheet_();
       if (active) {
-        return writeTablesToSpreadsheet_(active, tables, { title: title });
+        return writeTablesToSpreadsheet_(active, tables, {
+          title: options.title || title,
+          append: options.append
+        });
       }
 
       var spreadsheet = SpreadsheetApp.create(String(title).substring(0, 200));

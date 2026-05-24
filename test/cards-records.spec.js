@@ -30,6 +30,11 @@ function createCardServiceMock(captured) {
       'setOpenLink',
       'setUrl',
       'setOpenAs',
+      'setAltText',
+      'setIcon',
+      'setMaterialIcon',
+      'setImageButtonStyle',
+      'setStartIcon',
       'build'
     ].forEach(function (method) {
       obj[method] = function () {
@@ -72,6 +77,25 @@ function createCardServiceMock(captured) {
     newTextButton: function () {
       return chain('textButton');
     },
+    newImageButton: function () {
+      return chain('imageButton');
+    },
+    newMaterialIcon: function () {
+      var icon = chain('materialIcon');
+      icon.setName = function (name) {
+        icon.__calls.push({ method: 'setName', args: [name] });
+        icon.__name = name;
+        return icon;
+      };
+      icon.setFill = function (fill) {
+        icon.__calls.push({ method: 'setFill', args: [fill] });
+        return icon;
+      };
+      return icon;
+    },
+    newIconImage: function () {
+      return chain('iconImage');
+    },
     newDecoratedText: function () {
       return chain('decoratedText');
     },
@@ -95,7 +119,23 @@ function createCardServiceMock(captured) {
     SelectionInputType: { DROPDOWN: 'DROPDOWN' },
     ImageStyle: { CIRCLE: 'CIRCLE' },
     OpenAs: { FULL_SIZE: 'FULL_SIZE' },
-    TextButtonStyle: { FILLED: 'FILLED', TEXT: 'TEXT' }
+    TextButtonStyle: { FILLED: 'FILLED', TEXT: 'TEXT' },
+    ImageButtonStyle: { BORDERLESS: 'BORDERLESS' },
+    Icon: {
+      BOOKMARK: 'BOOKMARK',
+      CONFIRMATION_NUMBER_ICON: 'CONFIRMATION_NUMBER_ICON',
+      DESCRIPTION: 'DESCRIPTION',
+      DOLLAR: 'DOLLAR',
+      EMAIL: 'EMAIL',
+      INVITE: 'INVITE',
+      MAP_PIN: 'MAP_PIN',
+      MEMBERSHIP: 'MEMBERSHIP',
+      OFFER: 'OFFER',
+      PERSON: 'PERSON',
+      SHOPPING_CART: 'SHOPPING_CART',
+      STAR: 'STAR',
+      STORE: 'STORE'
+    }
   };
 }
 
@@ -397,7 +437,8 @@ describe('HiEnergyCards sheet result', function () {
   function buttonTexts() {
     return captured
       .filter(function (entry) {
-        return entry.method === 'setText';
+        return entry.method === 'setAltText' ||
+          (entry.method === 'setText' && entry.args[0] && entry.args[0] !== ' ');
       })
       .map(function (entry) {
         return entry.args[0];

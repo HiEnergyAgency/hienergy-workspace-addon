@@ -232,14 +232,13 @@ var HiEnergyMcpExport = (function () {
         ),
         hyperlink_(dealAdminUrl_(id), title),
         advertiserCell_(advSlug, advertiserName || advSlug),
-        first_(a.deal_type, a.type, a.category),
+        publisherCell_(a),
         first_(a.description, a.summary),
         first_(a.code, a.coupon_code, a.promo_code),
         first_(a.discount, a.value, a.amount, a.percent_off),
         a.start_date || a.starts_at || '',
         a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
-        networkCell_(a.network_name),
         a.url || a.landing_url || '',
         rawJson_(row)
       ];
@@ -290,6 +289,39 @@ var HiEnergyMcpExport = (function () {
       id ||
       ''
     );
+  }
+
+  function isGenericContactLabel_(value) {
+    return /^(sales|marketing|support|info|contact|admin|gdpr|hello|team|press|media|affiliate|partnerships)$/i.test(
+      String(value || '').trim()
+    );
+  }
+
+  function contactDisplayName_(attrs, id) {
+    var given = contactGivenName_(attrs);
+    var family = contactFamilyName_(attrs);
+    if (given || family) {
+      return contactFullName_(attrs, id);
+    }
+    var rawName = String(attrs.name || attrs.full_name || attrs.display_name || '').trim();
+    var title = String(attrs.job_title || attrs.title || '').trim();
+    if (rawName && rawName !== title && !isGenericContactLabel_(rawName)) {
+      return rawName;
+    }
+    var email = String(attrs.email || '').trim();
+    if (email) {
+      return email;
+    }
+    return rawName || title || id || '';
+  }
+
+  function contactTitle_(attrs) {
+    var title = String(attrs.job_title || attrs.title || '').trim();
+    var rawName = String(attrs.name || '').trim();
+    if (!title && isGenericContactLabel_(rawName)) {
+      return rawName;
+    }
+    return title;
   }
 
   function nestedAdvertiserAttrs_(attrs) {
@@ -373,17 +405,17 @@ var HiEnergyMcpExport = (function () {
       var id = idOf_(row, a);
       var company = contactAdvertiserCompany_(a);
       var advSlug = a.advertiser_slug || a.advertiser_id;
-      var fullName = contactFullName_(a, id);
+      var displayName = contactDisplayName_(a, id);
       var linkedin = linkedinProfile_(a);
       return [
         hyperlink_(advertiserHiEnergyUrl_(advSlug), company || advSlug),
         contactStatus_(a),
         advertiserCell_(advSlug, company || advSlug),
-        id ? hyperlink_(contactAdminUrl_(id), fullName) : fullName,
+        id ? hyperlink_(contactAdminUrl_(id), displayName) : displayName,
         contactGivenName_(a),
         contactFamilyName_(a),
         a.email || '',
-        a.job_title || a.title || '',
+        contactTitle_(a),
         a.phone || '',
         linkedin ? hyperlink_(linkedin, linkedin) : '',
         id ? hyperlink_(contactAdminUrl_(id), id) : '',
@@ -419,14 +451,13 @@ var HiEnergyMcpExport = (function () {
         'Advertiser Hi Energy link',
         'Title',
         'Advertiser',
-        'Type',
+        'Publisher',
         'Description',
         'Code',
         'Discount',
         'Starts',
         'Ends',
         'Status',
-        'Network',
         'Landing URL',
         'Raw'
       ],

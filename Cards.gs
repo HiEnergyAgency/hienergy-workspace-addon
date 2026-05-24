@@ -21,39 +21,284 @@ var HiEnergyCards = (function () {
     return action;
   }
 
-  function filledButton_(label, action) {
-    var btn = CardService.newTextButton().setText(label).setOnClickAction(action);
-    if (CardService.TextButtonStyle && CardService.TextButtonStyle.FILLED) {
+  function resolveIconForLabel_(label) {
+    var key = String(label || '').toLowerCase();
+    if (key.indexOf('search') !== -1) {
+      return 'material:search';
+    }
+    if (key.indexOf('sign in') !== -1 || key.indexOf('sign out') !== -1) {
+      return 'INVITE';
+    }
+    if (key.indexOf('save') !== -1 || key.indexOf('update api') !== -1) {
+      return 'MEMBERSHIP';
+    }
+    if (key.indexOf('remove') !== -1 || key.indexOf('disconnect') !== -1) {
+      return 'DESCRIPTION';
+    }
+    if (key.indexOf('new sheet') !== -1 || key.indexOf('create sheet') !== -1) {
+      return 'DESCRIPTION';
+    }
+    if (key.indexOf('add more') !== -1 || key.indexOf('fetch all') !== -1) {
+      return 'material:add';
+    }
+    if (key.indexOf('add to this sheet') !== -1 || key.indexOf(' to this sheet') !== -1 || key.indexOf('re-export') !== -1) {
+      return 'material:add';
+    }
+    if (key.indexOf('add ') === 0 || key.indexOf('add ') !== -1) {
+      return 'material:add';
+    }
+    if (key.indexOf('advertiser') !== -1) {
+      return 'STORE';
+    }
+    if (key.indexOf('contact') !== -1 || key.indexOf('draft') !== -1 || key.indexOf('look up') !== -1) {
+      return 'PERSON';
+    }
+    if (key.indexOf('deal') !== -1) {
+      return 'OFFER';
+    }
+    if (key.indexOf('transaction') !== -1 || key.indexOf('commission') !== -1) {
+      return 'DOLLAR';
+    }
+    if (key.indexOf('open') !== -1) {
+      return 'BOOKMARK';
+    }
+    if (key.indexOf('email') !== -1 || key.indexOf('thread') !== -1 || key.indexOf('message') !== -1) {
+      return 'EMAIL';
+    }
+    if (key.indexOf('domain') !== -1) {
+      return 'MAP_PIN';
+    }
+    if (key.indexOf('tool') !== -1 || key.indexOf('report') !== -1 || key.indexOf('mcp') !== -1) {
+      return 'STAR';
+    }
+    if (key.indexOf('create google') !== -1 || key.indexOf('export') !== -1) {
+      return 'material:add';
+    }
+    if (key.indexOf('run') !== -1 || key.indexOf('prepare') !== -1) {
+      return 'DESCRIPTION';
+    }
+    return 'DESCRIPTION';
+  }
+
+  function appIconButton_(label, config) {
+    config = config || {};
+    var iconName = config.iconName || resolveIconForLabel_(label);
+    var altText = config.altText || label || iconName;
+    var iconBtn = imageButton_(iconName, altText, config);
+    if (iconBtn) {
+      return iconBtn;
+    }
+    var textBtn = CardService.newTextButton().setText(' ');
+    if (config.openLink) {
+      textBtn.setOpenLink(config.openLink);
+    } else if (config.action) {
+      textBtn.setOnClickAction(config.action);
+    }
+    if (textBtn.setIcon && cardIcon_(iconName)) {
       try {
-        btn.setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-        if (btn.setBackgroundColor) {
-          btn.setBackgroundColor(HiEnergyConfig.brandPrimaryColor);
+        textBtn.setIcon(cardIcon_(iconName));
+      } catch (errIcon) {
+        // Fall back below.
+      }
+    }
+    if (config.filled && CardService.TextButtonStyle && CardService.TextButtonStyle.FILLED) {
+      try {
+        textBtn.setTextButtonStyle(CardService.TextButtonStyle.FILLED);
+        if (textBtn.setBackgroundColor) {
+          textBtn.setBackgroundColor(HiEnergyConfig.brandPrimaryColor);
         }
-      } catch (err) {
-        // Older CardService runtimes ignore styling — fall back silently.
+      } catch (errFilled) {
+        // No-op for older runtimes.
+      }
+    } else if (CardService.TextButtonStyle && CardService.TextButtonStyle.TEXT) {
+      try {
+        textBtn.setTextButtonStyle(CardService.TextButtonStyle.TEXT);
+      } catch (errText) {
+        // No-op for older runtimes.
+      }
+    }
+    if (textBtn.setAltText) {
+      try {
+        textBtn.setAltText(altText);
+      } catch (errAlt) {
+        // Optional on older runtimes.
+      }
+    }
+    return textBtn;
+  }
+
+  function iconActionButton_(label, functionName, parameters) {
+    return appIconButton_(label, { action: cardAction_(functionName, parameters) });
+  }
+
+  function iconOpenLinkButton_(label, url, options) {
+    options = options || {};
+    if (!url) {
+      return null;
+    }
+    return appIconButton_(label, {
+      iconName: options.iconName,
+      altText: options.altText || label,
+      filled: !!options.filled,
+      openLink: CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE)
+    });
+  }
+
+  function textActionButton_(label, action, options) {
+    options = options || {};
+    var btn = CardService.newTextButton().setText(String(label || ''));
+    if (action) {
+      btn.setOnClickAction(action);
+    }
+    if (options.openLink) {
+      btn.setOpenLink(options.openLink);
+    }
+    var style = options.filled ? 'FILLED' : 'TEXT';
+    if (CardService.TextButtonStyle && CardService.TextButtonStyle[style]) {
+      try {
+        btn.setTextButtonStyle(CardService.TextButtonStyle[style]);
+      } catch (errStyle) {
+        // No-op for older runtimes.
+      }
+    }
+    if (options.filled && btn.setBackgroundColor && HiEnergyConfig.brandPrimaryColor) {
+      try {
+        btn.setBackgroundColor(HiEnergyConfig.brandPrimaryColor);
+      } catch (errBg) {
+        // No-op for older runtimes.
       }
     }
     return btn;
+  }
+
+  function filledButton_(label, action) {
+    return textActionButton_(label, action, { filled: true });
   }
 
   function filledOpenUrlButton_(label, url) {
     if (!url) {
       return null;
     }
-    var btn = CardService.newTextButton()
-      .setText(label)
-      .setOpenLink(CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE));
-    if (CardService.TextButtonStyle && CardService.TextButtonStyle.FILLED) {
-      try {
-        btn.setTextButtonStyle(CardService.TextButtonStyle.FILLED);
-        if (btn.setBackgroundColor) {
-          btn.setBackgroundColor(HiEnergyConfig.brandPrimaryColor);
-        }
-      } catch (err) {
-        // No-op for older runtimes.
-      }
+    return textActionButton_(label, null, {
+      filled: true,
+      openLink: CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE)
+    });
+  }
+
+  function textOpenLinkButton_(label, url) {
+    if (!url) {
+      return null;
     }
-    return btn;
+    return textActionButton_(label, null, {
+      openLink: CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE)
+    });
+  }
+
+  function cardIcon_(name) {
+    if (!CardService.Icon) {
+      return null;
+    }
+    return CardService.Icon[name] || null;
+  }
+
+  function materialIcon_(name) {
+    if (!CardService.newMaterialIcon) {
+      return null;
+    }
+    try {
+      var icon = CardService.newMaterialIcon().setName(name);
+      if (icon.setFill) {
+        icon.setFill(true);
+      }
+      return icon;
+    } catch (errMaterial) {
+      return null;
+    }
+  }
+
+  function parseIconSpec_(iconName, config) {
+    config = config || {};
+    if (config.materialIcon) {
+      return { kind: 'material', name: config.materialIcon };
+    }
+    var raw = String(iconName || '');
+    if (raw.indexOf('material:') === 0) {
+      return { kind: 'material', name: raw.slice(9) };
+    }
+    return { kind: 'enum', name: iconName };
+  }
+
+  function imageButton_(iconName, altText, config) {
+    config = config || {};
+    if (!CardService.newImageButton) {
+      return null;
+    }
+    var spec = parseIconSpec_(iconName, config);
+    var btn = CardService.newImageButton().setAltText(altText || iconName);
+    try {
+      if (spec.kind === 'material') {
+        var material = materialIcon_(spec.name);
+        if (!material || !btn.setMaterialIcon) {
+          return null;
+        }
+        btn.setMaterialIcon(material);
+      } else {
+        var icon = cardIcon_(spec.name);
+        if (!icon) {
+          return null;
+        }
+        btn.setIcon(icon);
+      }
+      if (CardService.ImageButtonStyle && CardService.ImageButtonStyle.BORDERLESS) {
+        btn.setImageButtonStyle(CardService.ImageButtonStyle.BORDERLESS);
+      }
+      if (config.openLink) {
+        btn.setOpenLink(config.openLink);
+      } else if (config.action) {
+        btn.setOnClickAction(config.action);
+      } else {
+        return null;
+      }
+      return btn;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function compactTextButton_(label, config) {
+    return appIconButton_(label, config);
+  }
+
+  function advertiserSecondaryButtonSet_(contactsAction, dealsAction) {
+    var buttons = CardService.newButtonSet();
+    var added = 0;
+
+    if (contactsAction) {
+      buttons.addButton(appIconButton_('Contacts', { iconName: 'PERSON', action: contactsAction }));
+      added += 1;
+    }
+
+    if (dealsAction) {
+      buttons.addButton(appIconButton_('Deals', { iconName: 'OFFER', action: dealsAction }));
+      added += 1;
+    }
+
+    return added ? buttons : null;
+  }
+
+  function advertiserOpenButton_(directUrl, detailsAction) {
+    if (directUrl) {
+      return appIconButton_('Open', {
+        iconName: 'BOOKMARK',
+        openLink: CardService.newOpenLink()
+          .setUrl(directUrl)
+          .setOpenAs(CardService.OpenAs.FULL_SIZE)
+      });
+    }
+    if (detailsAction) {
+      return appIconButton_('Details', { iconName: 'DESCRIPTION', action: detailsAction });
+    }
+    return null;
   }
 
   function pluralize_(n, word) {
@@ -149,11 +394,7 @@ var HiEnergyCards = (function () {
             .setBottomLabel('Per-user Auth0 token stored in this Workspace user profile')
             .setWrapText(true)
         )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Sign out of Auth0')
-            .setOnClickAction(cardAction_('handleSignOutAuth0'))
-        );
+        .addWidget(iconActionButton_('Sign out of Auth0', 'handleSignOutAuth0'));
     } else {
       auth0Section
         .addWidget(
@@ -187,11 +428,7 @@ var HiEnergyCards = (function () {
       filledButton_(hasApiKey ? 'Update API key' : 'Save API key', cardAction_('handleSaveApiKeySettings'))
     );
     if (hasApiKey) {
-      apiKeySection.addWidget(
-        CardService.newTextButton()
-          .setText('Remove API key')
-          .setOnClickAction(cardAction_('handleRemoveApiKeySettings'))
-      );
+      apiKeySection.addWidget(iconActionButton_('Remove API key', 'handleRemoveApiKeySettings'));
     }
     card.addSection(apiKeySection);
 
@@ -210,30 +447,10 @@ var HiEnergyCards = (function () {
         .setValue(HiEnergyApi.getMcpUrl())
         .setHint('Default: ' + HiEnergyConfig.defaultMcpUrl)
     );
-    backendSection.addWidget(
-      CardService.newTextButton()
-        .setText('Save backend URLs')
-        .setOnClickAction(cardAction_('handleSaveBackendUrls'))
-    );
-    backendSection.addWidget(
-      CardService.newTextButton()
-        .setText('Reset to defaults')
-        .setOnClickAction(cardAction_('handleResetBackendUrls'))
-    );
-    backendSection.addWidget(
-      CardService.newTextButton()
-        .setText('Browse MCP tools')
-        .setOnClickAction(cardAction_('onMcpTools'))
-    );
-    backendSection.addWidget(
-      CardService.newTextButton()
-        .setText('MCP documentation')
-        .setOpenLink(
-          CardService.newOpenLink()
-            .setUrl(HiEnergyConfig.authDocsUrl)
-            .setOpenAs(CardService.OpenAs.FULL_SIZE)
-        )
-    );
+    backendSection.addWidget(iconActionButton_('Save backend URLs', 'handleSaveBackendUrls'));
+    backendSection.addWidget(iconActionButton_('Reset to defaults', 'handleResetBackendUrls'));
+    backendSection.addWidget(iconActionButton_('Browse MCP tools', 'onMcpTools'));
+    backendSection.addWidget(iconOpenLinkButton_('MCP documentation', HiEnergyConfig.authDocsUrl));
     card.addSection(backendSection);
 
     if (mode !== 'none') {
@@ -245,34 +462,14 @@ var HiEnergyCards = (function () {
               'Clear both Auth0 and the API key, then return to the welcome screen.'
             )
           )
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Disconnect everything')
-              .setOnClickAction(cardAction_('handleDisconnectSettings'))
-          )
+          .addWidget(iconActionButton_('Disconnect everything', 'handleDisconnectSettings'))
       );
     }
     card.addSection(
       CardService.newCardSection()
         .setHeader('Legal')
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Privacy policy')
-            .setOpenLink(
-              CardService.newOpenLink()
-                .setUrl(HiEnergyConfig.privacyPolicyUrl)
-                .setOpenAs(CardService.OpenAs.FULL_SIZE)
-            )
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Terms of service')
-            .setOpenLink(
-              CardService.newOpenLink()
-                .setUrl(HiEnergyConfig.termsOfServiceUrl)
-                .setOpenAs(CardService.OpenAs.FULL_SIZE)
-            )
-        )
+        .addWidget(iconOpenLinkButton_('Privacy policy', HiEnergyConfig.privacyPolicyUrl))
+        .addWidget(iconOpenLinkButton_('Terms of service', HiEnergyConfig.termsOfServiceUrl))
     );
     card.addSection(
       sectionText_(
@@ -327,11 +524,7 @@ var HiEnergyCards = (function () {
     card.addSection(apiKeySection);
 
     card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('Advanced settings')
-          .setOnClickAction(cardAction_('onSettings'))
-      )
+      CardService.newCardSection().addWidget(iconActionButton_('Advanced settings', 'onSettings'))
     );
 
     return card.build();
@@ -392,57 +585,41 @@ var HiEnergyCards = (function () {
       var exampleSet = CardService.newButtonSet();
       ['Nike', 'Sephora', 'Adidas', 'summer sale'].forEach(function (example) {
         exampleSet.addButton(
-          CardService.newTextButton()
-            .setText(example)
-            .setOnClickAction(
-              cardAction_('handleSearch', { query: example, scope: 'all' })
-            )
+          textActionButton_(
+            example,
+            cardAction_('handleSearch', { query: example, scope: 'all' })
+          )
         );
       });
       card.addSection(
         CardService.newCardSection()
-          .setHeader('Examples')
+          .setHeader('Try an example')
           .addWidget(exampleSet)
       );
     }
 
     var primaryActionLabel = isSheets ? 'Create tabs in this sheet' : 'Create a Google Sheet';
-    var primarySection = CardService.newCardSection().addWidget(
-      filledButton_(
-        primaryActionLabel,
-        cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null)
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        filledButton_(
+          primaryActionLabel,
+          cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null)
+        )
       )
     );
-    card.addSection(primarySection);
 
     var quickButtons = CardService.newButtonSet();
     if (isGmail) {
       quickButtons.addButton(
-        CardService.newTextButton()
-          .setText('Draft email')
-          .setOnClickAction(cardAction_('onDraftEmailAction'))
+        textActionButton_('Draft email', cardAction_('onDraftEmailAction'))
       );
     }
     quickButtons
-      .addButton(
-        CardService.newTextButton()
-          .setText('Reports')
-          .setOnClickAction(cardAction_('onReports'))
-      )
-      .addButton(
-        CardService.newTextButton()
-          .setText('MCP tools')
-          .setOnClickAction(cardAction_('onMcpTools'))
-      )
-      .addButton(
-        CardService.newTextButton()
-          .setText('Open app')
-          .setOpenLink(
-            CardService.newOpenLink()
-              .setUrl(HiEnergyConfig.appOrigin)
-              .setOpenAs(CardService.OpenAs.FULL_SIZE)
-          )
-      );
+      .addButton(textActionButton_('Reports', cardAction_('onReports')))
+      .addButton(textActionButton_('MCP tools', cardAction_('onMcpTools')));
+    if (HiEnergyConfig.appOrigin) {
+      quickButtons.addButton(textOpenLinkButton_('Open app', HiEnergyConfig.appOrigin));
+    }
     card.addSection(
       CardService.newCardSection()
         .setHeader('More')
@@ -471,11 +648,7 @@ var HiEnergyCards = (function () {
       .setHeader(header_(title, 'Something went wrong'))
       .addSection(sectionText_(message));
     card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('Back to search')
-          .setOnClickAction(cardAction_('onSearchAction'))
-      )
+      CardService.newCardSection().addWidget(iconActionButton_('Back to search', 'onSearchAction'))
     );
     return card.build();
   }
@@ -597,15 +770,99 @@ var HiEnergyCards = (function () {
     return humanize_(type.slice(0, -1));
   }
 
-  function advertiserCompactSubtitle_(attrs) {
-    return [
-      humanize_(advertiserStatus_(attrs)),
-      advertiserPublisher_(attrs),
-      attrs.domain,
-      attrs.network_name
-    ]
-      .filter(Boolean)
-      .join(' · ');
+  function escapeHtml_(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function statusColor_(status) {
+    var key = String(status || '')
+      .toLowerCase()
+      .replace(/[_-]+/g, ' ');
+    if (/approved|active|live|available/.test(key)) {
+      return '#16a34a';
+    }
+    if (/reject|denied|inactive|closed|suspended/.test(key)) {
+      return '#dc2626';
+    }
+    if (/pending|applied|unknown|not applied/.test(key)) {
+      return '#d97706';
+    }
+    return '#6b7280';
+  }
+
+  function statusHtml_(status) {
+    var label = humanize_(status);
+    if (!label) {
+      return '';
+    }
+    return (
+      '<font color="' +
+      statusColor_(status) +
+      '"><b>' +
+      escapeHtml_(label) +
+      '</b></font>'
+    );
+  }
+
+  function mutedHtml_(value) {
+    var text = String(value || '').trim();
+    if (!text) {
+      return '';
+    }
+    return '<font color="#6b7280">' + escapeHtml_(text) + '</font>';
+  }
+
+  function advertiserDecoratedText_(attrs, name) {
+    var status = advertiserStatus_(attrs);
+    var publisher = advertiserPublisher_(attrs);
+    var domain = attrs.domain || '';
+    var network = attrs.network_name || '';
+    var metaParts = [];
+    if (status) {
+      metaParts.push(statusHtml_(status));
+    }
+    if (publisher) {
+      metaParts.push(mutedHtml_(publisher));
+    }
+    var detailParts = [];
+    if (domain) {
+      detailParts.push(escapeHtml_(domain));
+    }
+    if (network) {
+      detailParts.push(escapeHtml_(network));
+    }
+    var bottom = '';
+    if (metaParts.length && detailParts.length) {
+      bottom =
+        metaParts.join(' &nbsp;·&nbsp; ') +
+        '<br>' +
+        mutedHtml_(detailParts.join(' · '));
+    } else if (metaParts.length) {
+      bottom = metaParts.join(' &nbsp;·&nbsp; ');
+    } else if (detailParts.length) {
+      bottom = mutedHtml_(detailParts.join(' · '));
+    }
+
+    var decorator = CardService.newDecoratedText()
+      .setText('<b>' + escapeHtml_(name) + '</b>')
+      .setWrapText(true);
+    if (bottom) {
+      decorator.setBottomLabel(bottom);
+    }
+    if (CardService.newIconImage && cardIcon_('STORE')) {
+      try {
+        decorator.setStartIcon(
+          CardService.newIconImage().setIcon(CardService.Icon.STORE)
+        );
+      } catch (errIcon) {
+        // Older CardService runtimes may not support start icons.
+      }
+    }
+    return decorator;
   }
 
   function subtitleForRecord_(type, record) {
@@ -658,12 +915,7 @@ var HiEnergyCards = (function () {
   }
 
   function openUrlButton_(label, url) {
-    if (!url) {
-      return null;
-    }
-    return CardService.newTextButton()
-      .setText(label)
-      .setOpenLink(CardService.newOpenLink().setUrl(url).setOpenAs(CardService.OpenAs.FULL_SIZE));
+    return iconOpenLinkButton_(label, url, {});
   }
 
   function currentHostApp_() {
@@ -750,9 +1002,10 @@ var HiEnergyCards = (function () {
       });
     }
     actionParams.newSheet = 'true';
-    return CardService.newTextButton()
-      .setText('New sheet')
-      .setOnClickAction(cardAction_(handler, actionParams));
+    return appIconButton_('New sheet', {
+      iconName: 'DESCRIPTION',
+      action: cardAction_(handler, actionParams)
+    });
   }
 
   function exportButtonSet_(exportType, params) {
@@ -785,9 +1038,19 @@ var HiEnergyCards = (function () {
       grandTotal += total;
     });
 
+    var typeBreakdown = types
+      .map(function (type) {
+        var t = totals[type] || {};
+        if (!t.total) return '';
+        var label = type.charAt(0).toUpperCase() + type.slice(1);
+        return label + ' ' + t.total;
+      })
+      .filter(Boolean)
+      .join(' · ');
     var subtitle = grandTotal
-      ? '"' + query + '" · ' + pluralize_(grandTotal, 'match')
-      : 'No matches for "' + query + '"';
+      ? '“' + query + '” · ' + pluralize_(grandTotal, 'match') +
+        (typeBreakdown ? ' · ' + typeBreakdown : '')
+      : 'No matches for “' + query + '”';
 
     var card = CardService.newCardBuilder().setHeader(header_(query || 'Results', subtitle));
 
@@ -797,23 +1060,19 @@ var HiEnergyCards = (function () {
     }
 
     if (grandTotal) {
-      var exportSection = CardService.newCardSection();
-      var primaryRow = CardService.newButtonSet()
+      var actionRow = CardService.newButtonSet()
         .addButton(exportSheetButton_(options.exportType, exportParams));
       if (currentHostApp_() === 'SHEETS') {
-        primaryRow.addButton(exportNewSheetButton_(options.exportType, exportParams));
+        actionRow.addButton(exportNewSheetButton_(options.exportType, exportParams));
       }
-      exportSection.addWidget(primaryRow);
-      exportSection.addWidget(
-        CardService.newButtonSet().addButton(
-          CardService.newTextButton()
-            .setText('New search')
-            .setOnClickAction(
-              cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
-            )
+      actionRow.addButton(
+        iconActionButton_(
+          'New search',
+          'onSearchAction',
+          options.hostApp ? { hostApp: options.hostApp } : null
         )
       );
-      card.addSection(exportSection);
+      card.addSection(CardService.newCardSection().addWidget(actionRow));
     }
 
     var found = false;
@@ -823,9 +1082,14 @@ var HiEnergyCards = (function () {
         return;
       }
       found = true;
+      var typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+      var shownCount = Math.min(entry.rows.length, HiEnergyConfig.perTypeLimit);
       var sectionHeader =
-        type.charAt(0).toUpperCase() + type.slice(1) +
-        ' · ' + pluralize_(entry.total, 'match');
+        '<b>' + typeLabel + '</b> · ' + pluralize_(entry.total, 'match');
+      if (entry.total > shownCount) {
+        sectionHeader +=
+          ' <font color="#6b7280">· showing ' + shownCount + '</font>';
+      }
       var section = CardService.newCardSection().setHeader(sectionHeader);
 
       normalizeResultRows_(entry.rows)
@@ -835,13 +1099,16 @@ var HiEnergyCards = (function () {
           var subtitleText = subtitleForRecord_(type, row);
           var topLabel = topLabelForRecord_(type, row);
           var isAdvertiser = type === 'advertisers';
-          var decorator = CardService.newDecoratedText().setText(label).setWrapText(true);
+          var attrs = attrsForRecord_(row);
+          var decorator;
           if (isAdvertiser) {
-            decorator.setBottomLabel(advertiserCompactSubtitle_(attrsForRecord_(row)));
+            decorator = advertiserDecoratedText_(attrs, label);
           } else {
-            decorator
+            decorator = CardService.newDecoratedText()
               .setTopLabel(topLabel)
-              .setBottomLabel(subtitleText);
+              .setText(label)
+              .setBottomLabel(subtitleText)
+              .setWrapText(true);
           }
 
           if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
@@ -849,94 +1116,73 @@ var HiEnergyCards = (function () {
             var contactEmail = String(cAttrs.email || '').trim();
             if (contactEmail) {
               decorator.setButton(
-                CardService.newTextButton()
-                  .setText('Draft')
-                  .setOnClickAction(
-                    cardAction_('handleDraftEmailToContact', {
-                      email: contactEmail,
-                      name: personName_(cAttrs),
-                      advertiserId: String(cAttrs.advertiser_id || ''),
-                      advertiserName: String(
-                        cAttrs.advertiser_name ||
-                          cAttrs.advertiser_company ||
-                          cAttrs.advertiser_company_name ||
-                          cAttrs.company_name ||
-                          cAttrs.organization ||
-                          ''
-                      )
-                    })
-                  )
-              );
-            }
-          }
-          var advertiserActionSlug = '';
-          if (type === 'advertisers') {
-            var attrs = attrsForRecord_(row);
-            var advertiserId = recordId_(row, attrs);
-            advertiserActionSlug = String(attrs.slug || advertiserId || '');
-            var directUrl = preferredAdvertiserUrl_(attrs, advertiserId);
-            if (directUrl) {
-              decorator.setButton(
-                CardService.newTextButton()
-                  .setText('Open')
-                  .setOpenLink(
-                    CardService.newOpenLink()
-                      .setUrl(directUrl)
-                      .setOpenAs(CardService.OpenAs.FULL_SIZE)
-                  )
-              );
-            } else {
-              decorator.setButton(
-                CardService.newTextButton()
-                  .setText('Details')
-                  .setOnClickAction(
-                    cardAction_('handleOpenAdvertiser', { id: advertiserActionSlug })
-                  )
+                appIconButton_('Draft', {
+                  iconName: 'EMAIL',
+                  action: cardAction_('handleDraftEmailToContact', {
+                    email: contactEmail,
+                    name: personName_(cAttrs),
+                    advertiserId: String(cAttrs.advertiser_id || ''),
+                    advertiserName: String(
+                      cAttrs.advertiser_name ||
+                        cAttrs.advertiser_company ||
+                        cAttrs.advertiser_company_name ||
+                        cAttrs.company_name ||
+                        cAttrs.organization ||
+                        ''
+                    )
+                  })
+                })
               );
             }
           }
           section.addWidget(decorator);
-          if (isAdvertiser && advertiserActionSlug) {
-            section.addWidget(
-              CardService.newButtonSet()
-                .addButton(
-                  CardService.newTextButton()
-                    .setText('Contacts')
-                    .setOnClickAction(
-                      cardAction_('handleCreateAdvertiserContactsSheet', {
-                        query: labelForRecord_(type, row),
-                        advertiser: advertiserActionSlug
-                      })
-                    )
-                )
-                .addButton(
-                  CardService.newTextButton()
-                    .setText('Deals')
-                    .setOnClickAction(
-                      cardAction_('handleAdvertiserDeals', {
-                        id: advertiserActionSlug,
-                        name: labelForRecord_(type, row)
-                      })
-                    )
-                )
+          if (type === 'advertisers') {
+            var advertiserId = recordId_(row, attrs);
+            var advertiserActionSlug = String(attrs.slug || advertiserId || '');
+            var directUrl = preferredAdvertiserUrl_(attrs, advertiserId);
+            var advRow = CardService.newButtonSet();
+            var openBtn = advertiserOpenButton_(
+              directUrl,
+              directUrl
+                ? null
+                : cardAction_('handleOpenAdvertiser', { id: advertiserActionSlug })
             );
+            if (openBtn) {
+              advRow.addButton(openBtn);
+            }
+            if (advertiserActionSlug) {
+              advRow.addButton(
+                appIconButton_('Contacts', {
+                  iconName: 'PERSON',
+                  action: cardAction_('handleCreateAdvertiserContactsSheet', {
+                    query: labelForRecord_(type, row),
+                    advertiser: advertiserActionSlug
+                  })
+                })
+              );
+              advRow.addButton(
+                appIconButton_('Deals', {
+                  iconName: 'OFFER',
+                  action: cardAction_('handleAdvertiserDeals', {
+                    id: advertiserActionSlug,
+                    name: labelForRecord_(type, row)
+                  })
+                })
+              );
+            }
+            section.addWidget(advRow);
           }
         });
-
-      var shownCount = Math.min(entry.rows.length, HiEnergyConfig.perTypeLimit);
-      if (entry.total > shownCount) {
-        section.addWidget(
-          CardService.newTextParagraph().setText(
-            '<i>+' + (entry.total - shownCount) + ' more · export to see all</i>'
-          )
-        );
-      }
 
       var sectionExportType =
         type === 'contacts' || type === 'advertiser_contacts'
           ? 'advertiser_contacts'
           : type;
-      section.addWidget(exportButtonSet_(sectionExportType, exportParams));
+      section.addWidget(
+        CardService.newButtonSet().addButton(
+          exportSheetButton_(sectionExportType, exportParams)
+        )
+      );
 
       card.addSection(section);
     });
@@ -952,14 +1198,11 @@ var HiEnergyCards = (function () {
     if (!grandTotal) {
       var emptyFooter = CardService.newCardSection().addWidget(
         CardService.newButtonSet().addButton(
-          CardService.newTextButton()
-            .setText('New search')
-            .setOnClickAction(
-              cardAction_(
-                'onSearchAction',
-                options.hostApp ? { hostApp: options.hostApp } : null
-              )
-            )
+          iconActionButton_(
+            'New search',
+            'onSearchAction',
+            options.hostApp ? { hostApp: options.hostApp } : null
+          )
         )
       );
       card.addSection(emptyFooter);
@@ -1018,45 +1261,47 @@ var HiEnergyCards = (function () {
     if (openBtn) {
       actions.addWidget(openBtn);
     }
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText('Deals for this advertiser')
-        .setOnClickAction(
-          CardService.newAction()
+    var actionRow1 = CardService.newButtonSet();
+    actionRow1
+      .addButton(
+        appIconButton_('Deals', {
+          iconName: 'OFFER',
+          action: CardService.newAction()
             .setFunctionName('handleAdvertiserDeals')
             .setParameters({ id: String(attrs.slug || id), name: name })
-        )
-    );
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText('Recent transactions')
-        .setOnClickAction(
-          CardService.newAction()
+        })
+      )
+      .addButton(
+        appIconButton_('Transactions', {
+          iconName: 'DOLLAR',
+          action: CardService.newAction()
             .setFunctionName('handleAdvertiserTransactions')
             .setParameters({ id: String(attrs.slug || id), name: name })
-        )
-    );
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText('Draft email with MCP data')
-        .setOnClickAction(
-          CardService.newAction()
+        })
+      );
+    actions.addWidget(actionRow1);
+    var actionRow2 = CardService.newButtonSet();
+    actionRow2
+      .addButton(
+        appIconButton_('Draft email', {
+          iconName: 'EMAIL',
+          action: CardService.newAction()
             .setFunctionName('handleDraftEmailFromAdvertiser')
             .setParameters({ id: String(attrs.slug || id), name: name })
-        )
-    );
-    actions.addWidget(
-      CardService.newTextButton()
-        .setText('Export contacts to sheet')
-        .setOnClickAction(
-          CardService.newAction()
+        })
+      )
+      .addButton(
+        appIconButton_('Export contacts', {
+          iconName: 'PERSON',
+          action: CardService.newAction()
             .setFunctionName('handleCreateAdvertiserContactsSheet')
             .setParameters({
               query: name,
               advertiser: String(attrs.slug || id)
             })
-        )
-    );
+        })
+      );
+    actions.addWidget(actionRow2);
     card.addSection(actions);
 
     return card.build();
@@ -1182,15 +1427,14 @@ var HiEnergyCards = (function () {
 
     if (contact.email) {
       widget.setButton(
-        CardService.newTextButton()
-          .setText('Draft')
-          .setOnClickAction(
-            cardAction_('handleDraftEmailToContact', {
-              email: String(contact.email),
-              name: String(contact.name || ''),
-              advertiserName: String(contact.organization || '')
-            })
-          )
+        appIconButton_('Draft', {
+          iconName: 'EMAIL',
+          action: cardAction_('handleDraftEmailToContact', {
+            email: String(contact.email),
+            name: String(contact.name || ''),
+            advertiserName: String(contact.organization || '')
+          })
+        })
       );
     }
 
@@ -1207,13 +1451,12 @@ var HiEnergyCards = (function () {
 
     if (showThreadButton && message.id) {
       widget.setButton(
-        CardService.newTextButton()
-          .setText('View thread')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleViewThread')
-              .setParameters({ messageId: String(message.id) })
-          )
+        appIconButton_('View thread', {
+          iconName: 'EMAIL',
+          action: CardService.newAction()
+            .setFunctionName('handleViewThread')
+            .setParameters({ messageId: String(message.id) })
+        })
       );
     }
 
@@ -1242,22 +1485,17 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('Export contacts to Google Sheet')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleCreateGoogleContactsSheet')
-              .setParameters({ query: query })
-          )
+        appIconButton_('Export contacts to Google Sheet', {
+          materialIcon: 'add',
+          action: CardService.newAction()
+            .setFunctionName('handleCreateGoogleContactsSheet')
+            .setParameters({ query: query })
+        })
       )
     );
 
     card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('New search')
-          .setOnClickAction(CardService.newAction().setFunctionName('onSearchAction'))
-      )
+      CardService.newCardSection().addWidget(iconActionButton_('New search', 'onSearchAction'))
     );
 
     return card.build();
@@ -1302,11 +1540,7 @@ var HiEnergyCards = (function () {
     }
 
     card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('New search')
-          .setOnClickAction(CardService.newAction().setFunctionName('onSearchAction'))
-      )
+      CardService.newCardSection().addWidget(iconActionButton_('New search', 'onSearchAction'))
     );
 
     return card.build();
@@ -1329,13 +1563,12 @@ var HiEnergyCards = (function () {
 
     if (context.senderEmail) {
       senderSection.addWidget(
-        CardService.newTextButton()
-          .setText('Look up contact')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleLookupContact')
-              .setParameters({ email: context.senderEmail })
-          )
+        appIconButton_('Look up contact', {
+          iconName: 'PERSON',
+          action: CardService.newAction()
+            .setFunctionName('handleLookupContact')
+            .setParameters({ email: context.senderEmail })
+        })
       );
     }
 
@@ -1350,13 +1583,12 @@ var HiEnergyCards = (function () {
 
     if (message.id) {
       senderSection.addWidget(
-        CardService.newTextButton()
-          .setText('View thread')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleViewThread')
-              .setParameters({ messageId: String(message.id) })
-          )
+        appIconButton_('View thread', {
+          iconName: 'EMAIL',
+          action: CardService.newAction()
+            .setFunctionName('handleViewThread')
+            .setParameters({ messageId: String(message.id) })
+        })
       );
     }
 
@@ -1376,54 +1608,51 @@ var HiEnergyCards = (function () {
         messagesSection.addWidget(messageWidget_(item, true));
       });
       messagesSection.addWidget(
-        CardService.newTextButton()
-          .setText('View all from ' + domain)
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleViewDomainMessages')
-              .setParameters({ domain: domain })
-          )
+        appIconButton_('View all from ' + domain, {
+          iconName: 'EMAIL',
+          action: CardService.newAction()
+            .setFunctionName('handleViewDomainMessages')
+            .setParameters({ domain: domain })
+        })
       );
       card.addSection(messagesSection);
     }
 
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader(HiEnergyConfig.brandName)
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Find advertiser')
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName('handleDomainLookup')
-                .setParameters({ domain: domain })
-            )
+    var gmailActions = CardService.newCardSection().setHeader(HiEnergyConfig.brandName);
+    gmailActions.addWidget(
+      CardService.newButtonSet()
+        .addButton(
+          appIconButton_('Find advertiser', {
+            iconName: 'STORE',
+            action: CardService.newAction()
+              .setFunctionName('handleDomainLookup')
+              .setParameters({ domain: domain })
+          })
         )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search ' + HiEnergyConfig.brandName)
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName('onSearchAction')
-                .setParameters({ query: domain })
-            )
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Draft email with MCP data')
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName('handleDraftEmailFromContext')
-                .setParameters({
-                  domain: domain,
-                  senderEmail: context.senderEmail || '',
-                  senderName: context.senderName || '',
-                  messageId: message.id ? String(message.id) : '',
-                  subject: message.subject || ''
-                })
-            )
+        .addButton(
+          appIconButton_('Search', {
+            materialIcon: 'search',
+            action: CardService.newAction()
+              .setFunctionName('onSearchAction')
+              .setParameters({ query: domain })
+          })
         )
     );
+    gmailActions.addWidget(
+      appIconButton_('Draft email', {
+        iconName: 'EMAIL',
+        action: CardService.newAction()
+          .setFunctionName('handleDraftEmailFromContext')
+          .setParameters({
+            domain: domain,
+            senderEmail: context.senderEmail || '',
+            senderName: context.senderName || '',
+            messageId: message.id ? String(message.id) : '',
+            subject: message.subject || ''
+          })
+      })
+    );
+    card.addSection(gmailActions);
 
     return card.build();
   }
@@ -1464,16 +1693,15 @@ var HiEnergyCards = (function () {
           .setText(description)
           .setWrapText(true)
           .setButton(
-            CardService.newTextButton()
-              .setText('Use')
-              .setOnClickAction(
-                CardService.newAction()
-                  .setFunctionName('handleMcpToolPrompt')
-                  .setParameters({
-                    tool: String(tool.name || ''),
-                    description: description
-                  })
-              )
+            appIconButton_('Use', {
+              iconName: 'STAR',
+              action: CardService.newAction()
+                .setFunctionName('handleMcpToolPrompt')
+                .setParameters({
+                  tool: String(tool.name || ''),
+                  description: description
+                })
+            })
           )
       );
     });
@@ -1512,13 +1740,12 @@ var HiEnergyCards = (function () {
           )
         )
         .addWidget(
-          CardService.newTextButton()
-            .setText('Run only')
-            .setOnClickAction(
-              CardService.newAction()
-                .setFunctionName('handleMcpToolCall')
-                .setParameters({ tool: toolName })
-            )
+          appIconButton_('Run only', {
+            iconName: 'DESCRIPTION',
+            action: CardService.newAction()
+              .setFunctionName('handleMcpToolCall')
+              .setParameters({ tool: toolName })
+          })
         )
     );
 
@@ -1549,11 +1776,7 @@ var HiEnergyCards = (function () {
         )
       );
       card.addSection(
-        CardService.newCardSection().addWidget(
-          CardService.newTextButton()
-            .setText('Browse all MCP tools')
-            .setOnClickAction(cardAction_('onMcpTools'))
-        )
+        CardService.newCardSection().addWidget(iconActionButton_('Browse all MCP tools', 'onMcpTools'))
       );
       return card.build();
     }
@@ -1567,39 +1790,33 @@ var HiEnergyCards = (function () {
           .setText(description)
           .setWrapText(true)
           .setButton(
-            CardService.newTextButton()
-              .setText(exportLabel_('Run & export'))
-              .setOnClickAction(
-                CardService.newAction()
-                  .setFunctionName('handleRunAndExportMcpTool')
-                  .setParameters({
-                    tool: String(tool.name || ''),
-                    description: description
-                  })
-              )
+            appIconButton_(exportLabel_('Run & export'), {
+              materialIcon: 'add',
+              action: CardService.newAction()
+                .setFunctionName('handleRunAndExportMcpTool')
+                .setParameters({
+                  tool: String(tool.name || ''),
+                  description: description
+                })
+            })
           )
       );
       listSection.addWidget(
-        CardService.newTextButton()
-          .setText('Configure inputs')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleMcpToolPrompt')
-              .setParameters({
-                tool: String(tool.name || ''),
-                description: description
-              })
-          )
+        appIconButton_('Configure inputs', {
+          iconName: 'DESCRIPTION',
+          action: CardService.newAction()
+            .setFunctionName('handleMcpToolPrompt')
+            .setParameters({
+              tool: String(tool.name || ''),
+              description: description
+            })
+        })
       );
     });
     card.addSection(listSection);
 
     card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('All MCP tools')
-          .setOnClickAction(cardAction_('onMcpTools'))
-      )
+      CardService.newCardSection().addWidget(iconActionButton_('All MCP tools', 'onMcpTools'))
     );
 
     return card.build();
@@ -1703,11 +1920,7 @@ var HiEnergyCards = (function () {
             cardAction_('handleExportMcpResultToSheet')
           )
         )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Back to MCP tools')
-            .setOnClickAction(cardAction_('onMcpTools'))
-        )
+        .addWidget(iconActionButton_('Back to MCP tools', 'onMcpTools'))
     );
     return card.build();
   }
@@ -1722,9 +1935,10 @@ var HiEnergyCards = (function () {
     }
     section.addWidget(deco);
     section.addWidget(
-      CardService.newTextButton()
-        .setText('Re-export to sheet')
-        .setOnClickAction(cardAction_(handler))
+      appIconButton_('Re-export to sheet', {
+        materialIcon: 'add',
+        action: cardAction_(handler)
+      })
     );
     return section;
   }
@@ -1849,9 +2063,10 @@ var HiEnergyCards = (function () {
         .setText('"' + (cached.query || 'Recent') + '"')
         .setWrapText(true)
         .setButton(
-          CardService.newTextButton()
-            .setText('Re-export')
-            .setOnClickAction(cardAction_(handler))
+          appIconButton_('Re-export', {
+            materialIcon: 'add',
+            action: cardAction_(handler)
+          })
         );
       if (cached.cachedAt) {
         deco.setBottomLabel('Cached ' + cached.cachedAt);
@@ -2038,20 +2253,18 @@ var HiEnergyCards = (function () {
     var hasSecondaryRow = false;
     if (canAddMoreRows_(result)) {
       secondaryRow.addButton(
-        CardService.newTextButton()
-          .setText('Fetch all remaining')
-          .setOnClickAction(
-            cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
-          )
+        appIconButton_('Fetch all remaining', {
+          iconName: 'DESCRIPTION',
+          action: cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
+        })
       );
       hasSecondaryRow = true;
     }
     secondaryRow.addButton(
-      CardService.newTextButton()
-        .setText('New search')
-        .setOnClickAction(
-          cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
-        )
+      appIconButton_('New search', {
+        materialIcon: 'search',
+        action: cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
+      })
     );
     hasSecondaryRow = true;
     if (hasSecondaryRow) {
@@ -2088,11 +2301,10 @@ var HiEnergyCards = (function () {
             .setTitle('Advertiser id or slug (optional)')
         )
         .addWidget(
-          CardService.newTextButton()
-            .setText('Prepare draft from MCP')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handlePrepareDraftEmail')
-            )
+          appIconButton_('Prepare draft from MCP', {
+            iconName: 'EMAIL',
+            action: CardService.newAction().setFunctionName('handlePrepareDraftEmail')
+          })
         )
     );
 
@@ -2116,11 +2328,10 @@ var HiEnergyCards = (function () {
             .setMultiline(true)
         )
         .addWidget(
-          CardService.newTextButton()
-            .setText('Create Gmail draft')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateDraftEmail')
-            )
+          appIconButton_('Create Gmail draft', {
+            iconName: 'EMAIL',
+            action: CardService.newAction().setFunctionName('handleCreateDraftEmail')
+          })
         )
     );
 
@@ -2156,15 +2367,14 @@ var HiEnergyCards = (function () {
           .setValue(draft.body || '')
       )
       .addWidget(
-        CardService.newTextButton()
-          .setText('Create Gmail draft')
-          .setOnClickAction(
-            CardService.newAction()
-              .setFunctionName('handleCreateDraftEmail')
-              .setParameters({
-                replyToMessageId: options.replyToMessageId ? String(options.replyToMessageId) : ''
-              })
-          )
+        appIconButton_('Create Gmail draft', {
+          iconName: 'EMAIL',
+          action: CardService.newAction()
+            .setFunctionName('handleCreateDraftEmail')
+            .setParameters({
+              replyToMessageId: options.replyToMessageId ? String(options.replyToMessageId) : ''
+            })
+        })
       );
 
     card.addSection(section);
@@ -2205,9 +2415,10 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('Draft another email')
-          .setOnClickAction(CardService.newAction().setFunctionName('onDraftEmailAction'))
+        appIconButton_('Draft another email', {
+          iconName: 'EMAIL',
+          action: CardService.newAction().setFunctionName('onDraftEmailAction')
+        })
       )
     );
 
