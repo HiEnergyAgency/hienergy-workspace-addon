@@ -418,7 +418,7 @@ var HiEnergySheets = (function () {
 
     HiEnergyMcpExport.cacheAdvertiserContactsSearch(normalized, result);
     return mergeExportMeta_(
-      createFromApiResult_('Advertiser Contacts', normalized, 'get_advertiser_contacts', result.body),
+      createFromApiResult_('Contacts', normalized, 'get_advertiser_contacts', result.body),
       result.body
     );
   }
@@ -429,11 +429,11 @@ var HiEnergySheets = (function () {
       return {
         ok: false,
         error: 'NO_CACHE',
-        message: 'Fetch advertiser contacts first, then export the latest results.'
+        message: 'Fetch contacts first, then export the latest results.'
       };
     }
     return createFromApiResult_(
-      'Advertiser Contacts',
+      'Contacts',
       cached.query,
       'get_advertiser_contacts',
       cached.body

@@ -1470,7 +1470,7 @@ var HiEnergyCards = (function () {
       }
 
       var contactsResultCard = CardService.newCardBuilder().setHeader(
-        header_('Advertiser contacts', query || toolName)
+        header_('Contacts', query || toolName)
       );
 
       if (!advertiserContactRows.length) {
@@ -1543,7 +1543,7 @@ var HiEnergyCards = (function () {
     if (type === 'transactions') {
       return 'Advertiser or network (optional)';
     }
-    if (type === 'advertiser_contacts') {
+    if (type === 'contacts') {
       return 'Advertiser id or slug, e.g. nike';
     }
     if (type === 'google_contacts') {
@@ -1568,7 +1568,7 @@ var HiEnergyCards = (function () {
         prefillQuery = cachedDeals.query;
       } else if (defaultType === 'transactions' && cachedTransactions && cachedTransactions.query) {
         prefillQuery = cachedTransactions.query;
-      } else if (defaultType === 'advertiser_contacts' && cachedAdvertiserContacts && cachedAdvertiserContacts.query) {
+      } else if ((defaultType === 'contacts' || defaultType === 'advertiser_contacts') && cachedAdvertiserContacts && cachedAdvertiserContacts.query) {
         prefillQuery = cachedAdvertiserContacts.query;
       } else if (defaultType === 'google_contacts' && cachedGoogleContacts && cachedGoogleContacts.query) {
         prefillQuery = cachedGoogleContacts.query;
@@ -1592,7 +1592,7 @@ var HiEnergyCards = (function () {
       .addItem('Advertisers', 'advertisers', defaultType === 'advertisers')
       .addItem('Deals', 'deals', defaultType === 'deals')
       .addItem('Transactions', 'transactions', defaultType === 'transactions')
-      .addItem('Advertiser contacts', 'advertiser_contacts', defaultType === 'advertiser_contacts')
+      .addItem('Contacts', 'contacts', defaultType === 'contacts' || defaultType === 'advertiser_contacts')
       .addItem('Google contacts', 'google_contacts', defaultType === 'google_contacts')
       .addItem('Everything (one tab per type)', 'everything', defaultType === 'everything');
 
@@ -1668,7 +1668,7 @@ var HiEnergyCards = (function () {
     addRecent('Advertisers', cachedAdvertisers, 'handleExportCachedAdvertisersToSheet');
     addRecent('Deals', cachedDeals, 'handleExportCachedDealsToSheet');
     addRecent('Transactions', cachedTransactions, 'handleExportCachedTransactionsToSheet');
-    addRecent('Advertiser contacts', cachedAdvertiserContacts, 'handleExportCachedAdvertiserContactsToSheet');
+    addRecent('Contacts', cachedAdvertiserContacts, 'handleExportCachedAdvertiserContactsToSheet');
     if (cachedGoogleContacts && cachedGoogleContacts.contacts && cachedGoogleContacts.contacts.length) {
       addRecent('Google contacts', { body: true, query: cachedGoogleContacts.query, cachedAt: cachedGoogleContacts.cachedAt },
         'handleExportCachedGoogleContactsToSheet');

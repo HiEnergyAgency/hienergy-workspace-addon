@@ -473,7 +473,7 @@ function handleCreateSheet(e) {
       HiEnergySheets.exportTransactions(query, days, advertiserFilter)
     );
   }
-  if (type === 'advertiser_contacts') {
+  if (type === 'contacts' || type === 'advertiser_contacts') {
     return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(query));
   }
   if (type === 'google_contacts') {

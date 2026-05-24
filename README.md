@@ -64,7 +64,7 @@ All Hi Energy AI requests go through the [MCP server](https://app.hienergy.ai/ap
 | Transactions | `search_transactions` | `GET /api/v1/transactions` |
 | Any other tool | — | `tools/call` → `api_request` |
 
-Use the **MCP Tools** universal action to browse and run any tool from `tools/list` (reports, advertiser contacts, user search, etc.).
+Use the **MCP Tools** universal action to browse and run any tool from `tools/list` (reports, contacts, user search, etc.).
 
 ### Gmail context
 
