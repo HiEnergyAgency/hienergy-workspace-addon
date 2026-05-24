@@ -17,9 +17,19 @@ var HiEnergySheets = (function () {
     return values.length - 1;
   }
 
+  function activeSpreadsheet_() {
+    try {
+      return SpreadsheetApp.getActiveSpreadsheet();
+    } catch (err) {
+      return null;
+    }
+  }
+
   function useActiveSpreadsheet_() {
-    var host = PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp);
-    return host === 'SHEETS';
+    if (activeSpreadsheet_()) {
+      return true;
+    }
+    return PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp) === 'SHEETS';
   }
 
   function writeTablesToSpreadsheet_(spreadsheet, tables) {
@@ -69,11 +79,9 @@ var HiEnergySheets = (function () {
     }
 
     try {
-      if (useActiveSpreadsheet_()) {
-        var active = SpreadsheetApp.getActiveSpreadsheet();
-        if (active) {
-          return writeTablesToSpreadsheet_(active, tables);
-        }
+      var active = activeSpreadsheet_();
+      if (active) {
+        return writeTablesToSpreadsheet_(active, tables);
       }
 
       var spreadsheet = SpreadsheetApp.create(String(title).substring(0, 200));

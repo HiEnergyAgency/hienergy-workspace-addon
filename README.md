@@ -244,17 +244,20 @@ End users never see these values.
 
 ### 6. Test deployment (internal)
 
-Use a test deployment before sharing widely:
+Use a test deployment before sharing widely. **The add-on does not appear under Extensions → Apps Script** in a spreadsheet — it runs from the **right-side add-on rail** (column of icons on the right edge of Sheets, Gmail, etc.).
 
-1. In Apps Script → **Deploy** → **Test deployments**
-2. Click **Install** and pick a configuration
-3. Open Gmail (or Drive/Docs) and install the test add-on for your account
-4. Verify:
+1. Open the project: [Apps Script editor](https://script.google.com/d/1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4/edit) (or `npm run deploy:open`)
+2. **Deploy** → **Test deployments** → **Install** (same Google account you use in Sheets)
+3. Open [sheets.google.com](https://sheets.google.com), open or create any spreadsheet
+4. In the **right sidebar**, click the **Hi Energy AI** icon (purple “hi” logo). If you do not see it, hard-refresh (Cmd+Shift+R) or sign out/in of Google
+5. Verify:
    - Sidebar shows **Hi Energy AI Workspace Add-on** branding
-   - **Sign in with Hi Energy AI** completes Auth0 login
-   - Search returns results via MCP `universal_search`
-   - Opening an email shows Gmail context and contact lookup
-   - **MCP Tools** lists available tools
+   - **Sign in with Hi Energy AI** or API key completes
+   - **Search** returns results
+   - **Create Sheet** → pick Advertisers / Deals / Transactions → export adds **tabs in this spreadsheet** (not a random new file)
+   - **Reports** lists MCP report tools and **Run & export** writes a sheet tab
+
+**Not the same as “Untitled project”:** If the Apps Script editor shows a blank `Code.gs` only, you opened a new script — use the script ID above.
 
 Share the test deployment link with teammates for internal QA. Test deployments are limited to users in the same Google Cloud project / domain policy allows.
 

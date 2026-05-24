@@ -14,11 +14,27 @@ function hostAppFromEvent_(e) {
   return '';
 }
 
+function inferHostFromContext_() {
+  try {
+    if (SpreadsheetApp.getActiveSpreadsheet()) {
+      return 'SHEETS';
+    }
+  } catch (err) {
+    // Not in a spreadsheet context.
+  }
+  return '';
+}
+
 function resolveHostApp_(e) {
   var fromEvent = hostAppFromEvent_(e);
   if (fromEvent) {
     PropertiesService.getUserProperties().setProperty(HiEnergyConfig.propHostApp, fromEvent);
     return fromEvent;
+  }
+  var inferred = inferHostFromContext_();
+  if (inferred) {
+    PropertiesService.getUserProperties().setProperty(HiEnergyConfig.propHostApp, inferred);
+    return inferred;
   }
   return PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp) || '';
 }
