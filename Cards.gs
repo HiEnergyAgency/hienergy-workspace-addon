@@ -68,6 +68,30 @@ var HiEnergyCards = (function () {
     return HiEnergyConfig.appOrigin + (HiEnergyConfig.advertiserPath || '/a/') + encodeURIComponent(clean);
   }
 
+  function isWhitelistedUrl_(url) {
+    if (!url || typeof url !== 'string') {
+      return false;
+    }
+    var prefixes = [HiEnergyConfig.appOrigin + '/'];
+    for (var i = 0; i < prefixes.length; i += 1) {
+      if (url.indexOf(prefixes[i]) === 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function preferredAdvertiserUrl_(attrs, id) {
+    var canonical = advertiserAppUrl_(id);
+    if (canonical) {
+      return canonical;
+    }
+    if (isWhitelistedUrl_(attrs.url)) {
+      return attrs.url;
+    }
+    return '';
+  }
+
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
       header_('Settings', 'Sign-in, API keys, and backend')
@@ -653,7 +677,7 @@ var HiEnergyCards = (function () {
           if (type === 'advertisers') {
             var attrs = attrsForRecord_(row);
             var advertiserId = recordId_(row, attrs);
-            var directUrl = attrs.url || advertiserAppUrl_(advertiserId);
+            var directUrl = preferredAdvertiserUrl_(attrs, advertiserId);
             if (directUrl) {
               decorator.setButton(
                 CardService.newTextButton()
@@ -755,7 +779,7 @@ var HiEnergyCards = (function () {
     }
 
     var actions = CardService.newCardSection();
-    var appUrl = attrs.url || (id ? advertiserAppUrl_(id) : null);
+    var appUrl = preferredAdvertiserUrl_(attrs, id) || (id ? advertiserAppUrl_(id) : null);
     var openBtn = filledOpenUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl) ||
       openUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl);
     if (openBtn) {

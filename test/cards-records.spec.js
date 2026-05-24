@@ -204,6 +204,33 @@ describe('HiEnergyCards search results', function () {
     expect(urls).toContain('https://app.hienergy.ai/a/4242');
   });
 
+  it('ignores non-whitelisted advertiser website URLs and uses Hi Energy URL', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{
+              id: '7',
+              display_name: 'Alo Yoga',
+              url: 'https://aloyoga.com'
+            }],
+            total: 1
+          }
+        }
+      }
+    });
+    const urls = captured
+      .filter(function (entry) {
+        return entry.method === 'setUrl';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(urls).toContain('https://app.hienergy.ai/a/7');
+    expect(urls).not.toContain('https://aloyoga.com');
+  });
+
   it('opens the same advertiser URL regardless of host (Sheets / Slides)', function () {
     ctx.HiEnergyCards.searchResults('alo', {
       ok: true,
