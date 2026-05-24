@@ -360,19 +360,42 @@ var HiEnergyMcpExport = (function () {
     );
   }
 
+  var EXPORT_CACHE_TTL_ = 21600;
+
+  function exportCacheStore_() {
+    try {
+      return CacheService.getUserCache();
+    } catch (err) {
+      return null;
+    }
+  }
+
   function cacheTypedExport_(type, query, result, meta) {
     if (!result || !result.ok) {
       return;
     }
     try {
+      var payload = JSON.stringify({
+        query: query || '',
+        meta: meta || {},
+        body: result.body,
+        contacts: result.contacts,
+        cachedAt: new Date().toISOString()
+      });
+      var cache = exportCacheStore_();
+      if (cache && payload.length < 95000) {
+        cache.put(cacheKey_(type), payload, EXPORT_CACHE_TTL_);
+        return;
+      }
+      // Payload too large for cache or cache unavailable — keep a metadata-only
+      // marker in properties so the UI can still re-run the live export.
       PropertiesService.getUserProperties().setProperty(
         cacheKey_(type),
         JSON.stringify({
           query: query || '',
           meta: meta || {},
-          body: result.body,
-          contacts: result.contacts,
-          cachedAt: new Date().toISOString()
+          cachedAt: new Date().toISOString(),
+          oversize: true
         })
       );
     } catch (err) {
@@ -382,7 +405,11 @@ var HiEnergyMcpExport = (function () {
 
   function readCachedTypedExport_(type) {
     try {
-      var raw = PropertiesService.getUserProperties().getProperty(cacheKey_(type));
+      var cache = exportCacheStore_();
+      var raw = cache ? cache.get(cacheKey_(type)) : null;
+      if (!raw) {
+        raw = PropertiesService.getUserProperties().getProperty(cacheKey_(type));
+      }
       if (!raw) {
         return null;
       }

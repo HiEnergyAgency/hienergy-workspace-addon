@@ -602,7 +602,7 @@ var HiEnergyCards = (function () {
       : base + ' to Google Sheet';
   }
 
-  function exportSheetButton_(exportType) {
+  function exportSheetButton_(exportType, params) {
     if (exportType === true) {
       return filledButton_(
         exportLabel_('Export results'),
@@ -612,19 +612,19 @@ var HiEnergyCards = (function () {
 
     var config = {
       advertisers: {
-        label: exportLabel_('Export advertisers'),
+        label: exportLabel_('Export advertisers (up to 500)'),
         handler: 'handleExportCachedAdvertisersToSheet'
       },
       deals: {
-        label: exportLabel_('Export deals'),
+        label: exportLabel_('Export deals (up to 500)'),
         handler: 'handleExportCachedDealsToSheet'
       },
       transactions: {
-        label: exportLabel_('Export transactions'),
+        label: exportLabel_('Export transactions (up to 500)'),
         handler: 'handleExportCachedTransactionsToSheet'
       },
       advertiser_contacts: {
-        label: exportLabel_('Export contacts'),
+        label: exportLabel_('Export contacts (up to 500)'),
         handler: 'handleExportCachedAdvertiserContactsToSheet'
       },
       google_contacts: {
@@ -637,11 +637,11 @@ var HiEnergyCards = (function () {
     if (!entry) {
       return filledButton_(
         exportLabel_('Export search results'),
-        cardAction_('handleExportCachedSearchToSheet')
+        cardAction_('handleExportCachedSearchToSheet', params || null)
       );
     }
 
-    return filledButton_(entry.label, cardAction_(entry.handler));
+    return filledButton_(entry.label, cardAction_(entry.handler, params || null));
   }
 
   function searchResultsCard_(query, result, options) {
@@ -672,7 +672,11 @@ var HiEnergyCards = (function () {
 
     if (grandTotal) {
       var exportSection = CardService.newCardSection();
-      exportSection.addWidget(exportSheetButton_(options.exportType));
+      var exportParams = { query: String(query || '') };
+      if (options.searchMode) {
+        exportParams.searchMode = String(options.searchMode);
+      }
+      exportSection.addWidget(exportSheetButton_(options.exportType, exportParams));
       card.addSection(exportSection);
     }
 

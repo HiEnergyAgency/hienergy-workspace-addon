@@ -513,8 +513,14 @@ function handleCreateAdvertiserSheet(e) {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertisers(query, searchMode));
 }
 
-function handleExportCachedAdvertisersToSheet() {
+function handleExportCachedAdvertisersToSheet(e) {
   ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var query = String(params.query || '').trim();
+  if (query) {
+    var mode = String(params.searchMode || 'name');
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertisers(query, mode));
+  }
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedAdvertisers());
 }
 
@@ -528,8 +534,13 @@ function handleCreateDealsSheet(e) {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportDeals(query));
 }
 
-function handleExportCachedDealsToSheet() {
+function handleExportCachedDealsToSheet(e) {
   ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var query = String(params.query || '').trim();
+  if (query) {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportDeals(query));
+  }
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedDeals());
 }
 
@@ -541,8 +552,15 @@ function handleCreateTransactionsSheet(e) {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportTransactions(query, days));
 }
 
-function handleExportCachedTransactionsToSheet() {
+function handleExportCachedTransactionsToSheet(e) {
   ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var query = String(params.query || '').trim();
+  if (query || params.days) {
+    return HiEnergyCards.sheetResult(
+      HiEnergySheets.exportTransactions(query, String(params.days || '30'))
+    );
+  }
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedTransactions());
 }
 
@@ -557,8 +575,13 @@ function handleCreateAdvertiserContactsSheet(e) {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(advertiser));
 }
 
-function handleExportCachedAdvertiserContactsToSheet() {
+function handleExportCachedAdvertiserContactsToSheet(e) {
   ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var query = String(params.query || '').trim();
+  if (query) {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(query));
+  }
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedAdvertiserContacts());
 }
 
@@ -576,8 +599,14 @@ function handleExportCachedGoogleContactsToSheet() {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedGoogleContacts());
 }
 
-function handleExportCachedSearchToSheet() {
+function handleExportCachedSearchToSheet(e) {
   ensureAuthenticated_();
+  var params = (e && e.parameters) || {};
+  var query = String(params.query || '').trim();
+  if (query) {
+    var mode = String(params.searchMode || 'name');
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportSearch(query, 'all', mode));
+  }
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedSearch());
 }
 
