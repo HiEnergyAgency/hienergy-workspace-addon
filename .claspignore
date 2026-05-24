@@ -1,0 +1,12 @@
+# Do not push Node/dev tooling to Apps Script
+node_modules/**
+test/**
+.github/**
+scripts/**
+package.json
+package-lock.json
+eslint.config.js
+vitest.config.js
+.gitignore
+README.md
+.clasp.json.example

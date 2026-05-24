@@ -9,6 +9,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "validate": "npm run lint && npm run test && npm run check:manifest",
+    "setup:clasp": "bash scripts/setup-clasp.sh",
     "check:manifest": "node scripts/check-manifest.js"
   },
   "devDependencies": {
