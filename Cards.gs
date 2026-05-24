@@ -481,10 +481,31 @@ var HiEnergyCards = (function () {
     return attrs.name || attrs.title || attrs.display_name || id || 'Result';
   }
 
+  function advertiserStatus_(attrs) {
+    return attrs.program_status || attrs.status || attrs.advertiser_status || '';
+  }
+
+  function advertiserPublisher_(attrs) {
+    return attrs.publisher_name || attrs.publisher || attrs.publisher_display_name || '';
+  }
+
+  function topLabelForRecord_(type, record) {
+    var attrs = attrsForRecord_(record);
+    if (type === 'advertisers') {
+      var status = advertiserStatus_(attrs);
+      var publisher = advertiserPublisher_(attrs);
+      if (status && publisher) {
+        return status + ' · ' + publisher;
+      }
+      return status || publisher || 'Advertiser';
+    }
+    return type.slice(0, -1);
+  }
+
   function subtitleForRecord_(type, record) {
     var attrs = attrsForRecord_(record);
     if (type === 'advertisers') {
-      return [attrs.domain, attrs.network_name, attrs.program_status].filter(Boolean).join(' · ');
+      return [attrs.domain, attrs.network_name].filter(Boolean).join(' · ');
     }
     if (type === 'deals') {
       return [attrs.advertiser_name, attrs.country, attrs.status].filter(Boolean).join(' · ');
@@ -609,8 +630,9 @@ var HiEnergyCards = (function () {
         .forEach(function (row) {
           var label = labelForRecord_(type, row);
           var subtitleText = subtitleForRecord_(type, row);
+          var topLabel = topLabelForRecord_(type, row);
           var decorator = CardService.newDecoratedText()
-            .setTopLabel(type.slice(0, -1))
+            .setTopLabel(topLabel)
             .setText(label)
             .setBottomLabel(subtitleText)
             .setWrapText(true);

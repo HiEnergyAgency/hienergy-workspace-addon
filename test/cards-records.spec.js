@@ -241,6 +241,35 @@ describe('HiEnergyCards search results', function () {
     expect(actionFunctionNames()).toContain('handleOpenAdvertiser');
   });
 
+  it('shows status and publisher in the advertiser top label', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{
+              id: '5',
+              display_name: 'Alo Yoga',
+              domain: 'aloyoga.com',
+              network_name: 'Skimlinks',
+              program_status: 'Active',
+              publisher_name: 'Pepperjam'
+            }],
+            total: 1
+          }
+        }
+      }
+    });
+    const topLabels = captured
+      .filter(function (entry) {
+        return entry.method === 'setTopLabel';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(topLabels).toContain('Active · Pepperjam');
+  });
+
   it('uses advertiser export handler when scope is advertisers', function () {
     ctx.HiEnergyCards.searchResults(
       'nike',
