@@ -16,6 +16,7 @@ describe('appsscript.json manifest', function () {
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/gmail.compose');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/contacts.readonly');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/spreadsheets');
+    expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/gmail.addons.execute');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.external_request');
     expect(manifest.oauthScopes).toContain('https://www.googleapis.com/auth/script.locale');
     expect(manifest.urlFetchWhitelist).toContain('https://app.hienergy.ai/');
@@ -27,6 +28,12 @@ describe('appsscript.json manifest', function () {
     expect(manifest.dependencies.enabledAdvancedServices).toEqual([
       expect.objectContaining({ userSymbol: 'People', serviceId: 'peopleapi' })
     ]);
+  });
+
+  it('enables Gmail and Sheets hosts', function () {
+    expect(manifest.addOns.gmail.contextualTriggers).toHaveLength(1);
+    expect(manifest.addOns.sheets).toEqual({});
+    expect(manifest.addOns.common.homepageTrigger.enabled).toBe(true);
   });
 
   it('wires homepage, Gmail, and universal actions', function () {

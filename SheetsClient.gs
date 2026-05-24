@@ -17,12 +17,46 @@ var HiEnergySheets = (function () {
     return values.length - 1;
   }
 
+  function useActiveSpreadsheet_() {
+    var host = PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp);
+    return host === 'SHEETS';
+  }
+
+  function writeTablesToSpreadsheet_(spreadsheet, tables) {
+    var totalRows = 0;
+    tables.forEach(function (table) {
+      var sheetName = sanitizeSheetName_(table.name);
+      var sheet = spreadsheet.getSheetByName(sheetName);
+      if (!sheet) {
+        sheet = spreadsheet.insertSheet(sheetName);
+      } else {
+        sheet.clear();
+      }
+      totalRows += writeTable_(sheet, table.headers, table.rows);
+    });
+    return {
+      ok: true,
+      url: spreadsheet.getUrl(),
+      spreadsheetId: spreadsheet.getId(),
+      sheetCount: tables.length,
+      rowCount: totalRows,
+      usedActiveSpreadsheet: true
+    };
+  }
+
   function createFromTables_(title, tables) {
     if (!tables || !tables.length) {
       return { ok: false, error: 'NO_DATA', message: 'No rows to export.' };
     }
 
     try {
+      if (useActiveSpreadsheet_()) {
+        var active = SpreadsheetApp.getActiveSpreadsheet();
+        if (active) {
+          return writeTablesToSpreadsheet_(active, tables);
+        }
+      }
+
       var spreadsheet = SpreadsheetApp.create(String(title).substring(0, 200));
       var totalRows = 0;
 
@@ -40,7 +74,8 @@ var HiEnergySheets = (function () {
         url: url,
         spreadsheetId: spreadsheet.getId(),
         sheetCount: tables.length,
-        rowCount: totalRows
+        rowCount: totalRows,
+        usedActiveSpreadsheet: false
       };
     } catch (err) {
       console.warn('Sheet create failed: ' + err);

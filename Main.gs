@@ -7,11 +7,28 @@ function hostAppFromEvent_(e) {
   if (common && common.hostApp) {
     return String(common.hostApp);
   }
+  var params = e && e.parameters;
+  if (params && params.hostApp) {
+    return String(params.hostApp);
+  }
   return '';
+}
+
+function resolveHostApp_(e) {
+  var fromEvent = hostAppFromEvent_(e);
+  if (fromEvent) {
+    PropertiesService.getUserProperties().setProperty(HiEnergyConfig.propHostApp, fromEvent);
+    return fromEvent;
+  }
+  return PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp) || '';
 }
 
 function isGmailHost_(hostApp) {
   return hostApp === 'GMAIL';
+}
+
+function isSheetsHost_(hostApp) {
+  return hostApp === 'SHEETS';
 }
 
 function onSettings() {
@@ -24,7 +41,7 @@ function handleSignIn() {
 
 function onSearchAction(e) {
   ensureAuthenticated_();
-  var hostApp = hostAppFromEvent_(e);
+  var hostApp = resolveHostApp_(e);
   var query = e && e.parameters ? String(e.parameters.query || '').trim() : '';
   if (query) {
     var result = HiEnergyApi.universalSearch(query);
@@ -66,6 +83,8 @@ function handleSearch(e) {
   var form = (e && e.formInput) || {};
   var query = String(form.query || '').trim();
   var scope = String(form.scope || 'all');
+  var hostApp = resolveHostApp_(e);
+  var resultOptions = { hostApp: hostApp };
 
   if (!query) {
     return HiEnergyCards.error('Missing query', 'Enter a brand, domain, or deal keyword to search.');
@@ -77,7 +96,7 @@ function handleSearch(e) {
   }
 
   if (scope === 'messages') {
-    var hostApp = hostAppFromEvent_(e);
+    var hostApp = resolveHostApp_(e);
     if (hostApp && !isGmailHost_(hostApp)) {
       return HiEnergyCards.error(
         'Gmail only',
@@ -107,10 +126,14 @@ function handleSearch(e) {
             }
           }
         },
-        { exportType: 'advertisers' }
+        Object.assign({ exportType: 'advertisers' }, resultOptions)
       );
     }
-    return HiEnergyCards.searchResults(query, advertiserResult, { exportType: 'advertisers' });
+    return HiEnergyCards.searchResults(
+      query,
+      advertiserResult,
+      Object.assign({ exportType: 'advertisers' }, resultOptions)
+    );
   }
 
   if (scope === 'deals') {
@@ -138,7 +161,7 @@ function handleSearch(e) {
   if (result.ok) {
     HiEnergyMcpExport.cacheSearchResult(query, scope, result);
   }
-  return HiEnergyCards.searchResults(query, result);
+  return HiEnergyCards.searchResults(query, result, resultOptions);
 }
 
 function handleOpenAdvertiser(e) {
@@ -343,7 +366,7 @@ function ensureAuthenticatedHome_(e) {
   if (!HiEnergyApi.hasAuth()) {
     return HiEnergyCards.connect();
   }
-  return HiEnergyCards.search(null, { hostApp: hostAppFromEvent_(e) });
+  return HiEnergyCards.search(null, { hostApp: resolveHostApp_(e) });
 }
 
 function ensureAuthenticated_() {
@@ -355,8 +378,8 @@ function ensureAuthenticated_() {
   }
 }
 
-function onCreateSheetAction() {
-  return HiEnergyCards.createSheet();
+function onCreateSheetAction(e) {
+  return HiEnergyCards.createSheet({ hostApp: resolveHostApp_(e) });
 }
 
 function handleCreateSheetFromSearch(e) {
@@ -461,7 +484,7 @@ function handleExportMcpResultToSheet() {
 
 function onDraftEmailAction(e) {
   ensureAuthenticated_();
-  var hostApp = hostAppFromEvent_(e);
+  var hostApp = resolveHostApp_(e);
   if (hostApp && !isGmailHost_(hostApp)) {
     return HiEnergyCards.error(
       'Gmail drafts',

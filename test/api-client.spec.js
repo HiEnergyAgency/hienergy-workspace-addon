@@ -66,6 +66,36 @@ describe('HiEnergyApi.universalSearch', function () {
     expect(result.body.results.advertisers.data[0].attributes.display_name).toBe('Nike');
   });
 
+  it('wraps flat MCP rows in attributes for card rendering', function () {
+    fetchMock.mockImplementation(function () {
+      return {
+        getResponseCode: function () {
+          return 200;
+        },
+        getContentText: function () {
+          return JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {
+              structuredContent: {
+                results: {
+                  advertisers: {
+                    data: [{ id: '9', display_name: 'Flat Co', domain: 'flat.co' }],
+                    total: 1
+                  }
+                }
+              }
+            }
+          });
+        }
+      };
+    });
+
+    const result = ctx.HiEnergyApi.universalSearch('flat');
+    expect(result.body.results.advertisers.data[0].attributes.display_name).toBe('Flat Co');
+    expect(result.body.results.advertisers.data[0].attributes.domain).toBe('flat.co');
+  });
+
   it('falls back to api_request when universal_search returns an invalid body', function () {
     fetchMock.mockImplementation(function (_url, options) {
       const payload = JSON.parse(options.payload);

@@ -13,6 +13,14 @@ var HiEnergyCards = (function () {
     );
   }
 
+  function cardAction_(functionName, parameters) {
+    var action = CardService.newAction().setFunctionName(functionName);
+    if (parameters) {
+      action.setParameters(parameters);
+    }
+    return action;
+  }
+
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
       header_('Settings', HiEnergyConfig.brandName + ' sign-in and API options')
@@ -177,7 +185,7 @@ var HiEnergyCards = (function () {
   function searchCard_(prefill, options) {
     options = options || {};
     var hostApp = options.hostApp || '';
-    var showGmailScopes = !hostApp || hostApp === 'GMAIL';
+    var isGmail = !hostApp || hostApp === 'GMAIL';
 
     var card = CardService.newCardBuilder().setHeader(
       header_('Search', HiEnergyConfig.brandName)
@@ -190,12 +198,11 @@ var HiEnergyCards = (function () {
       .addItem('Everything', 'all', !prefill)
       .addItem('Advertisers', 'advertisers', false)
       .addItem('Deals', 'deals', false)
-      .addItem('Transactions', 'transactions', false);
+      .addItem('Transactions', 'transactions', false)
+      .addItem('Contacts', 'contacts', false);
 
-    if (showGmailScopes) {
-      scopeInput
-        .addItem('Contacts', 'contacts', false)
-        .addItem('Messages', 'messages', false);
+    if (isGmail) {
+      scopeInput.addItem('Messages', 'messages', false);
     }
 
     var section = CardService.newCardSection()
@@ -219,7 +226,13 @@ var HiEnergyCards = (function () {
     if (hostApp === 'SHEETS') {
       card.addSection(
         sectionText_(
-          'Use the <b>Create Sheet</b> universal action to export MCP search results into this spreadsheet.'
+          'Search here, then use <b>Export</b> on results or <b>Create Sheet</b> to add tabs to <b>this spreadsheet</b>.'
+        )
+      );
+    } else if (hostApp === 'GMAIL') {
+      card.addSection(
+        sectionText_(
+          'Open an email for sender context, or search Hi Energy AI advertisers, deals, and transactions below.'
         )
       );
     }
@@ -439,7 +452,9 @@ var HiEnergyCards = (function () {
       CardService.newCardSection().addWidget(
         CardService.newTextButton()
           .setText('New search')
-          .setOnClickAction(CardService.newAction().setFunctionName('onSearchAction'))
+          .setOnClickAction(
+            cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
+          )
       )
     );
 
@@ -1060,16 +1075,20 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
-  function createSheetCard_() {
+  function createSheetCard_(options) {
+    options = options || {};
+    var hostApp = options.hostApp || '';
     var cachedAdvertisers = HiEnergyMcpExport.readCachedAdvertiserSearch();
     var cachedDeals = HiEnergyMcpExport.readCachedDealsSearch();
     var cachedTransactions = HiEnergyMcpExport.readCachedTransactionsSearch();
     var cachedAdvertiserContacts = HiEnergyMcpExport.readCachedAdvertiserContactsSearch();
     var cachedGoogleContacts = HiEnergyMcpExport.readCachedGoogleContactsSearch();
     var cached = HiEnergyMcpExport.readCachedSearch();
-    var card = CardService.newCardBuilder().setHeader(
-      header_('Create Sheet', 'Export Hi Energy and Google data to Sheets')
-    );
+    var subtitle =
+      hostApp === 'SHEETS'
+        ? 'Add Hi Energy data as tabs in this spreadsheet'
+        : 'Export Hi Energy and Google data to a new spreadsheet';
+    var card = CardService.newCardBuilder().setHeader(header_('Create Sheet', subtitle));
 
     card.addSection(
       CardService.newCardSection()
@@ -1336,7 +1355,12 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
-  function sheetResultCard_(result) {
+  function sheetResultCard_(result, options) {
+    options = options || {};
+    if (!options.hostApp) {
+      options.hostApp =
+        PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp) || '';
+    }
     if (!result.ok) {
       if (result.error === 'NO_DATA' || result.error === 'NO_CACHE') {
         return errorCard_('Nothing to export', result.message || 'No MCP data available to export.');
@@ -1347,9 +1371,8 @@ var HiEnergyCards = (function () {
       return apiErrorCard_(result);
     }
 
-    var card = CardService.newCardBuilder().setHeader(
-      header_('Sheet created', HiEnergyConfig.brandName)
-    );
+    var title = result.usedActiveSpreadsheet ? 'Exported to this spreadsheet' : 'Sheet created';
+    var card = CardService.newCardBuilder().setHeader(header_(title, HiEnergyConfig.brandName));
 
     card.addSection(
       CardService.newCardSection()
@@ -1369,7 +1392,9 @@ var HiEnergyCards = (function () {
       CardService.newCardSection().addWidget(
         CardService.newTextButton()
           .setText('Create another sheet')
-          .setOnClickAction(CardService.newAction().setFunctionName('onCreateSheetAction'))
+          .setOnClickAction(
+            cardAction_('onCreateSheetAction', options.hostApp ? { hostApp: options.hostApp } : null)
+          )
       )
     );
 

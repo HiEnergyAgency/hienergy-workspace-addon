@@ -66,25 +66,87 @@ var HiEnergyApi = (function () {
     return cleaned;
   }
 
+  function normalizeRecord_(record) {
+    if (!record || typeof record !== 'object') {
+      return null;
+    }
+    if (record.attributes && typeof record.attributes === 'object') {
+      return record;
+    }
+    var attrs = {};
+    Object.keys(record).forEach(function (key) {
+      if (key !== 'id' && key !== 'type') {
+        attrs[key] = record[key];
+      }
+    });
+    return {
+      id: record.id,
+      type: record.type,
+      attributes: attrs
+    };
+  }
+
+  function normalizeSearchBucket_(bucket) {
+    if (!bucket || typeof bucket !== 'object') {
+      return bucket;
+    }
+    var rows = bucket.data;
+    if (!Array.isArray(rows)) {
+      return bucket;
+    }
+    return Object.assign({}, bucket, {
+      data: rows
+        .map(normalizeRecord_)
+        .filter(function (row) {
+          return row !== null;
+        })
+    });
+  }
+
   function normalizeSearchBody_(body) {
     if (!body || typeof body !== 'object') {
       return { results: {} };
     }
+    var container = body;
+    if (body.data && body.data.results) {
+      container = body.data;
+    } else if (body.structuredContent && body.structuredContent.results) {
+      container = body.structuredContent;
+    }
+    var results = (container && container.results) || {};
+    var normalized = {};
+    Object.keys(results).forEach(function (type) {
+      normalized[type] = normalizeSearchBucket_(results[type]);
+    });
+    return { results: normalized };
+  }
+
+  function extractSearchResults_(body) {
+    if (!body || typeof body !== 'object') {
+      return null;
+    }
     if (body.results) {
-      return body;
+      return body.results;
     }
     if (body.data && body.data.results) {
-      return body.data;
+      return body.data.results;
     }
     if (body.structuredContent && body.structuredContent.results) {
-      return body.structuredContent;
+      return body.structuredContent.results;
     }
-    return body;
+    return null;
   }
 
   function isValidSearchBody_(body) {
-    var normalized = normalizeSearchBody_(body);
-    return Boolean(normalized && typeof normalized.results === 'object');
+    var results = extractSearchResults_(body);
+    if (!results || typeof results !== 'object') {
+      return false;
+    }
+    return Object.keys(results).some(function (type) {
+      var bucket = results[type];
+      var rows = bucket && bucket.data;
+      return Array.isArray(rows) && rows.length > 0;
+    });
   }
 
   function withToolFallback_(toolName, toolArgs, path, options) {
