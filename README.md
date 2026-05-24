@@ -128,6 +128,8 @@ The add-on manifest (`appsscript.json`) uses the same name, logo, and colors for
 
 ## Deployment
 
+> **Quick start:** To run and test on your machine, see [Run locally](#run-locally). To contribute code, see [Submitting changes](#submitting-changes).
+
 This add-on deploys as a **Google Apps Script** project with a **Workspace add-on** manifest. There is no separate server to host — Google runs the sidebar UI and your `.gs` code.
 
 ### Prerequisites
@@ -386,33 +388,81 @@ The manifest requests these Google scopes (users re-authorize after scope change
 4. **Hi Energy AI data**: click **Sign in with Hi Energy AI** → complete Auth0 login
 5. Search, browse MCP tools, or drill into advertisers, deals, and transactions
 
-## Local development with clasp
+## Run locally
+
+The add-on code runs in Google's cloud — there is no local Gmail sidebar. **Local development** means validating logic on your machine, then pushing to Apps Script and testing in Gmail with a **test deployment**.
+
+### Prerequisites
+
+| Tool | Install |
+|------|---------|
+| Node.js 22+ | [nodejs.org](https://nodejs.org/) |
+| clasp | `npm install -g @google/clasp` |
+| Apps Script API | [script.google.com/home/usersettings](https://script.google.com/home/usersettings) → enable |
+
+You also need access to the shared Apps Script project (or your own fork + script ID) and Auth0 script properties set in that project (see [One-time admin setup](#one-time-admin-setup)).
+
+### One-time local setup
 
 ```bash
-npm install -g @google/clasp
-clasp login
-
+git clone https://github.com/HiEnergyAgency/hienergy-workspace-addon.git
 cd hienergy-workspace-addon
 npm install
-cp .clasp.json.example .clasp.json
-clasp create --title "Hi Energy AI Workspace Add-on" --type standalone
-clasp push
+clasp login
 ```
 
-Set script properties in the Apps Script UI, then **Deploy** → **Test deployments**.
-
-### Lint and specs
-
-This repo includes ESLint for all `.gs` sources and Vitest specs that load Apps Script modules in a mocked Google runtime.
+Link clasp to the Hi Energy Apps Script project (use the repo's committed ID — do **not** commit your own `.clasp.json`):
 
 ```bash
-npm run lint          # ESLint all Apps Script + test files
-npm run test          # Vitest specs (27 tests)
-npm run check:manifest # Verify appsscript.json wiring
-npm run validate      # lint + test + manifest check
+cp .github/clasp.json .clasp.json
+# scriptId is already set: 1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4
 ```
 
-Spec coverage:
+For a **personal sandbox** instead, copy `.clasp.json.example`, run `npm run deploy:create`, and use your own script ID.
+
+### Daily development loop
+
+```bash
+# 1. Edit .gs files, then validate before pushing
+npm run validate
+
+# 2. Push to Apps Script (updates HEAD; test deployments pick this up)
+npm run deploy:push
+# or: clasp push
+
+# 3. Open the editor and confirm libraries/services
+npm run deploy:open
+
+# 4. Test in Gmail — use Apps Script → Deploy → Test deployments → Install
+```
+
+| Command | What it does |
+|---------|----------------|
+| `npm run lint` | ESLint on `.gs`, tests, and scripts |
+| `npm run test` | Vitest specs (37 tests) in a mocked Apps Script runtime |
+| `npm run check:manifest` | Verify `appsscript.json` wiring |
+| `npm run validate` | lint + test + manifest (run before every push/PR) |
+| `npm run deploy:push` | `clasp push` only |
+| `npm run deploy:open` | Open Apps Script editor in browser |
+
+**What you can test locally:** config, MCP client, API client, manifest, card handler logic (Vitest).
+
+**What requires Gmail:** sidebar UI, Auth0 sign-in flow, live MCP calls, Contacts/Gmail integration — use a **test deployment** after `clasp push`.
+
+### Marketplace tooling (local only)
+
+Google has no API to publish Marketplace listings from CI. Use these locally when preparing or updating a listing:
+
+```bash
+npm run marketplace:phase4:status   # API/status report
+npm run marketplace:phase4          # enable APIs + open console tabs + paste values
+npm run marketplace:submit          # browser automation (sign in to Google Cloud when prompted)
+npm run check:marketplace           # validate listing assets (full image checks on macOS)
+```
+
+See [`marketplace/checklist.md`](./marketplace/checklist.md) for the full publishing checklist.
+
+### Spec coverage
 
 | Spec file | Covers |
 |-----------|--------|
@@ -424,30 +474,96 @@ Spec coverage:
 | `test/main.spec.js` | MCP tool argument mapping |
 | `test/manifest.spec.js` | `appsscript.json` scopes and triggers |
 
-CI runs `npm run validate` on every push to `main` via GitHub Actions. **Merges to `main` also deploy** to Apps Script (`clasp push` + update the production deployment).
+## Submitting changes
 
-### Continuous deployment (merge to `main`)
+Use pull requests for all code changes. **PRs run validation only**; **merging to `main` deploys** to production Apps Script automatically.
 
-On every **merge/push to `main`**, GitHub Actions (`.github/workflows/ci.yml`):
-
-1. Runs `npm run validate` + marketplace file checks
-2. `clasp push --force` to the Apps Script project in `.github/clasp.json`
-3. Updates the **production** deployment (`clasp deploy -i …`) — this is the deployment ID linked in the Marketplace SDK listing
-4. Verifies the production deployment ID is present (`scripts/verify-deployment.mjs`)
-
-**Live add-on updates:** After the Marketplace listing is approved once, you do **not** resubmit the listing for each code change. Merges to `main` update the linked production deployment automatically.
-
-**First-time Marketplace approval** (console only, no API):
+### 1. Branch from `main`
 
 ```bash
-npm run marketplace:submit
+git checkout main
+git pull origin main
+git checkout -b your-name/short-description
 ```
 
-Or trigger **Actions → Marketplace submit** for the checklist output.
+### 2. Develop and validate
 
-**Manual redeploy** (same commit, refresh production): Actions → CI → Run workflow → enable “Skip validate and deploy current main”.
+Edit `.gs` files, tests, or manifest as needed.
 
-**One-time setup** — repository secrets (required by CI):
+```bash
+npm run validate
+```
+
+If you change Marketplace assets or copy:
+
+```bash
+npm run check:marketplace
+```
+
+Fix any lint, test, or manifest failures before opening a PR.
+
+### 3. Push and open a pull request
+
+```bash
+git add -A
+git commit -m "Describe why this change is needed."
+git push -u origin your-name/short-description
+gh pr create --title "Your PR title" --body "$(cat <<'EOF'
+## Summary
+- What changed and why
+
+## Test plan
+- [ ] `npm run validate` passes locally
+- [ ] Tested in Gmail via test deployment (if UI/behavior changed)
+- [ ] Manifest/scopes unchanged OR noted re-authorization impact
+EOF
+)"
+```
+
+Or open the PR from the GitHub UI after pushing.
+
+### 4. CI on the pull request
+
+GitHub Actions (`.github/workflows/ci.yml`) runs on every PR to `main`:
+
+| Job | PR | Merge to `main` |
+|-----|----|-----------------|
+| **validate** — lint, 37 specs, manifest, marketplace files | ✅ | ✅ |
+| **deploy** — `clasp push` + update production deployment | ❌ | ✅ |
+
+Check the **Actions** tab on your PR — all validate steps must pass before merge.
+
+### 5. Merge to `main`
+
+After review and green CI:
+
+1. **Squash merge** (or merge commit) into `main`
+2. CI deploy job runs automatically:
+   - `clasp push --force`
+   - Updates production deployment `AKfycbwbYxV5…`
+   - Verifies deployment ID (`scripts/verify-deployment.mjs`)
+3. View the deploy summary in the Actions run for commit SHA and Apps Script link
+
+**No separate release step** — merged code is live for the Marketplace-linked production deployment once deploy succeeds.
+
+### 6. After merge (when relevant)
+
+| Change type | Follow-up |
+|-------------|-----------|
+| OAuth scopes in `appsscript.json` | Users re-authorize; update OAuth consent + Marketplace SDK scopes; may need Google verification |
+| Marketplace listing text/assets | Update console listing manually; run `npm run marketplace:submit` or `npm run marketplace:phase4` |
+| Auth0 config | Update Auth0 callback / script properties in Apps Script (not in Git) |
+| Bug fix / feature only | Test deployment optional; production updates via CI |
+
+### Manual production redeploy
+
+To redeploy current `main` without a new commit: **Actions → CI → Run workflow** → enable **Skip validate and deploy current main**.
+
+## CI setup and Marketplace
+
+The [Submitting changes](#submitting-changes) section describes the PR → merge → deploy flow. This section covers one-time GitHub secrets and first-time Marketplace approval.
+
+### GitHub Actions secrets
 
 | Secret | Purpose |
 |--------|---------|
@@ -477,6 +593,17 @@ gh variable set GCP_PROJECT_ID --body 'hi-energy-workspace-app' --repo HiEnergyA
 ```
 
 Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login`, then `npm run setup:github-secrets`).
+
+### First-time Marketplace approval
+
+After the listing is approved, **merges to `main` update live add-on code** via the linked production deployment — no listing resubmit per code change.
+
+```bash
+npm run marketplace:submit          # browser: App Configuration + Store Listing
+npm run marketplace:phase4            # CLI status + open console tabs
+```
+
+Or **Actions → Marketplace submit** for the checklist output.
 
 **Not in GitHub:** Auth0 credentials (`AUTH0_*`) live in Apps Script **Project Settings → Script properties** only. Set once in the Apps Script editor:
 
