@@ -152,8 +152,43 @@ function handleSearch(e) {
   }
 
   if (scope === 'contacts') {
-    var contactsResult = HiEnergyContacts.search(query);
-    return HiEnergyCards.contacts(query, contactsResult);
+    ensureAuthenticated_();
+    var contactsResult = HiEnergyApi.searchContacts(
+      query,
+      1,
+      HiEnergyConfig.interactiveSearchLimit
+    );
+    if (contactsResult.ok) {
+      HiEnergyMcpExport.cacheAdvertiserContactsSearch(query, contactsResult);
+      var contactRows =
+        (contactsResult.body && contactsResult.body.data) ||
+        (Array.isArray(contactsResult.body) ? contactsResult.body : []);
+      return HiEnergyCards.searchResults(
+        query,
+        {
+          ok: true,
+          body: {
+            results: {
+              contacts: {
+                data: contactRows,
+                total: contactRows.length
+              }
+            }
+          }
+        },
+        Object.assign({ exportType: 'advertiser_contacts' }, resultOptions)
+      );
+    }
+    return HiEnergyCards.searchResults(
+      query,
+      contactsResult,
+      Object.assign({ exportType: 'advertiser_contacts' }, resultOptions)
+    );
+  }
+
+  if (scope === 'google_contacts') {
+    var googleContactsResult = HiEnergyContacts.search(query);
+    return HiEnergyCards.contacts(query, googleContactsResult);
   }
 
   if (scope === 'messages') {

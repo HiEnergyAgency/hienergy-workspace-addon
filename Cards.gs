@@ -364,7 +364,8 @@ var HiEnergyCards = (function () {
       .addItem('Advertisers', 'advertisers', false)
       .addItem('Deals', 'deals', false)
       .addItem('Transactions', 'transactions', false)
-      .addItem('Contacts', 'contacts', false);
+      .addItem('Contacts', 'contacts', false)
+      .addItem('Google contacts', 'google_contacts', false);
 
     if (isGmail) {
       scopeInput.addItem('Messages', 'messages', false);
