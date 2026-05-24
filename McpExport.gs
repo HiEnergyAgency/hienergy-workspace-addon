@@ -124,6 +124,14 @@ var HiEnergyMcpExport = (function () {
     return '';
   }
 
+  function rawJson_(row) {
+    try {
+      return JSON.stringify(row);
+    } catch (err) {
+      return '';
+    }
+  }
+
   function advertiserRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
@@ -138,7 +146,8 @@ var HiEnergyMcpExport = (function () {
         a.domain || '',
         a.network_name || '',
         first_(a.program_status, a.status, a.advertiser_status),
-        a.url || ''
+        a.url || '',
+        rawJson_(row)
       ];
     });
   }
@@ -165,7 +174,8 @@ var HiEnergyMcpExport = (function () {
         a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
         a.network_name || '',
-        a.url || a.landing_url || ''
+        a.url || a.landing_url || '',
+        rawJson_(row)
       ];
     });
   }
@@ -187,7 +197,8 @@ var HiEnergyMcpExport = (function () {
         a.network_name || '',
         a.transaction_date || a.event_date || a.created_at || '',
         a.status || '',
-        first_(a.order_id, a.transaction_id)
+        first_(a.order_id, a.transaction_id),
+        rawJson_(row)
       ];
     });
   }
@@ -299,7 +310,8 @@ var HiEnergyMcpExport = (function () {
         a.job_title || a.title || '',
         a.phone || '',
         linkedinProfile_(a),
-        id
+        id,
+        rawJson_(row)
       ];
     });
   }
@@ -319,7 +331,8 @@ var HiEnergyMcpExport = (function () {
         'Domain',
         'Network',
         'Status',
-        'External URL'
+        'External URL',
+        'Raw'
       ],
       rows: advertiserRows_
     },
@@ -338,7 +351,8 @@ var HiEnergyMcpExport = (function () {
         'Ends',
         'Status',
         'Network',
-        'Landing URL'
+        'Landing URL',
+        'Raw'
       ],
       rows: dealRows_
     },
@@ -353,7 +367,8 @@ var HiEnergyMcpExport = (function () {
         'Network',
         'Date',
         'Status',
-        'Order ID'
+        'Order ID',
+        'Raw'
       ],
       rows: transactionRows_
     },
@@ -369,7 +384,8 @@ var HiEnergyMcpExport = (function () {
         'Title',
         'Phone',
         'LinkedIn profile',
-        'CID'
+        'CID',
+        'Raw'
       ],
       rows: contactRows_
     }
@@ -695,10 +711,10 @@ var HiEnergyMcpExport = (function () {
         contact.familyName || '',
         contact.email || '',
         contact.jobTitle || '',
-        '',
         contact.phone || '',
         contact.linkedin || '',
-        contact.resourceName || ''
+        contact.resourceName || '',
+        rawJson_(contact)
       ];
     });
   }
