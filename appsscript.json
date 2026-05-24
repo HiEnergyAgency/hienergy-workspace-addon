@@ -1,0 +1,50 @@
+{
+  "timeZone": "America/Los_Angeles",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/gmail.addons.current.message.readonly",
+    "https://www.googleapis.com/auth/gmail.addons.execute"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Hi Energy Rocket",
+      "logoUrl": "https://app.hienergy.ai/branding/hienergy-logo-black.svg",
+      "layoutProperties": {
+        "primaryColor": "#8b5cf6",
+        "secondaryColor": "#6d28d9"
+      },
+      "useLocaleFromApp": true,
+      "homepageTrigger": {
+        "runFunction": "onHomepage",
+        "enabled": true
+      },
+      "universalActions": [
+        {
+          "label": "Search",
+          "runFunction": "onSearchAction"
+        },
+        {
+          "label": "Settings",
+          "runFunction": "onSettings"
+        }
+      ]
+    },
+    "gmail": {
+      "contextualTriggers": [
+        {
+          "unconditional": {},
+          "onTriggerFunction": "onGmailMessageOpen"
+        }
+      ]
+    },
+    "drive": {},
+    "sheets": {},
+    "docs": {},
+    "slides": {},
+    "calendar": {}
+  }
+}
