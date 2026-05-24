@@ -1,15 +1,17 @@
 function onHomepage() {
-  if (!HiEnergyApi.hasApiKey()) {
-    return HiEnergyCards.connect();
-  }
-  return HiEnergyCards.search();
+  return ensureAuthenticatedHome_();
 }
 
 function onSettings() {
   return HiEnergyCards.settings();
 }
 
+function handleSignIn() {
+  HiEnergyAuth.requireAuthorization();
+}
+
 function onSearchAction(e) {
+  ensureAuthenticated_();
   var query = e && e.parameters ? String(e.parameters.query || '').trim() : '';
   if (query) {
     return HiEnergyCards.searchResults(query, HiEnergyApi.search(query));
@@ -17,25 +19,34 @@ function onSearchAction(e) {
   return HiEnergyCards.search();
 }
 
-function handleSaveSettings(e) {
+function handleSaveApiKeySettings(e) {
   var form = (e && e.formInput) || {};
   var apiKey = String(form.apiKey || '').trim();
   var apiBase = String(form.apiBase || '').trim();
 
-  if (!apiKey) {
-    return HiEnergyCards.error('Missing API key', 'Paste your Hi Energy API key before saving.');
+  if (apiKey) {
+    HiEnergyApi.saveCredentials(apiKey, apiBase || HiEnergyConfig.defaultApiBase);
+  } else if (apiBase) {
+    var props = PropertiesService.getUserProperties();
+    props.setProperty(HiEnergyConfig.propApiBase, apiBase.replace(/\/$/, ''));
   }
 
-  HiEnergyApi.saveCredentials(apiKey, apiBase || HiEnergyConfig.defaultApiBase);
-  return HiEnergyCards.search();
+  return HiEnergyCards.settings();
+}
+
+function handleRemoveApiKeySettings() {
+  HiEnergyApi.clearCredentials();
+  return HiEnergyCards.settings();
 }
 
 function handleDisconnectSettings() {
+  HiEnergyAuth.reset();
   HiEnergyApi.clearCredentials();
   return HiEnergyCards.connect();
 }
 
 function handleSearch(e) {
+  ensureAuthenticated_();
   var form = (e && e.formInput) || {};
   var query = String(form.query || '').trim();
   var scope = String(form.scope || 'all');
@@ -60,6 +71,7 @@ function handleSearch(e) {
 }
 
 function handleOpenAdvertiser(e) {
+  ensureAuthenticated_();
   var id = e && e.parameters ? e.parameters.id : '';
   if (!id) {
     return HiEnergyCards.error('Missing advertiser', 'No advertiser id was provided.');
@@ -68,6 +80,7 @@ function handleOpenAdvertiser(e) {
 }
 
 function handleDomainLookup(e) {
+  ensureAuthenticated_();
   var domain = e && e.parameters ? e.parameters.domain : '';
   if (!domain) {
     return HiEnergyCards.error('Missing domain', 'Could not read a domain from the message.');
@@ -103,6 +116,7 @@ function handleDomainLookup(e) {
 }
 
 function handleAdvertiserDeals(e) {
+  ensureAuthenticated_();
   var params = (e && e.parameters) || {};
   var name = params.name || 'Advertiser';
   var id = params.id || '';
@@ -110,6 +124,7 @@ function handleAdvertiserDeals(e) {
 }
 
 function handleAdvertiserTransactions(e) {
+  ensureAuthenticated_();
   var params = (e && e.parameters) || {};
   var name = params.name || 'Advertiser';
   var id = params.id || '';
@@ -117,7 +132,7 @@ function handleAdvertiserTransactions(e) {
 }
 
 function onGmailMessageOpen(e) {
-  if (!HiEnergyApi.hasApiKey()) {
+  if (!HiEnergyApi.hasAuth()) {
     return HiEnergyCards.connect();
   }
 
@@ -127,6 +142,25 @@ function onGmailMessageOpen(e) {
   }
 
   return HiEnergyCards.gmailContext(domain, 'Look up programs for this sender');
+}
+
+function ensureAuthenticatedHome_() {
+  if (!HiEnergyAuth.isConfigured() && !HiEnergyApi.hasApiKey()) {
+    return HiEnergyCards.connect();
+  }
+  if (!HiEnergyApi.hasAuth()) {
+    return HiEnergyCards.connect();
+  }
+  return HiEnergyCards.search();
+}
+
+function ensureAuthenticated_() {
+  if (HiEnergyApi.hasAuth()) {
+    return;
+  }
+  if (HiEnergyAuth.isConfigured()) {
+    HiEnergyAuth.requireAuthorization();
+  }
 }
 
 function extractDomainFromGmailEvent_(e) {

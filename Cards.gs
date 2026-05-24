@@ -15,17 +15,49 @@ var HiEnergyCards = (function () {
 
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
-      header_('Settings', 'Connect your Hi Energy API key')
+      header_('Settings', 'Hi Energy sign-in and API options')
     );
 
-    var section = CardService.newCardSection()
-      .setHeader('API credentials')
+    if (!HiEnergyAuth.isConfigured()) {
+      card.addSection(
+        sectionText_(
+          'This deployment is missing Auth0 script properties. An admin must set <b>AUTH0_DOMAIN</b>, <b>AUTH0_CLIENT_ID</b>, <b>AUTH0_CLIENT_SECRET</b>, and <b>AUTH0_AUDIENCE</b> in Apps Script project settings.'
+        )
+      );
+    } else if (HiEnergyAuth.hasAccess()) {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Signed in')
+          .addWidget(CardService.newDecoratedText().setText('Connected with Auth0').setTopLabel('Status'))
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Sign out')
+              .setOnClickAction(
+                CardService.newAction().setFunctionName('handleDisconnectSettings')
+              )
+          )
+      );
+    } else {
+      card.addSection(
+        CardService.newCardSection()
+          .setHeader('Sign in')
+          .addWidget(
+            CardService.newTextButton()
+              .setText('Sign in with Hi Energy')
+              .setOnClickAction(
+                CardService.newAction().setFunctionName('handleSignIn')
+              )
+          )
+      );
+    }
+
+    var advanced = CardService.newCardSection()
+      .setHeader('Advanced: API key fallback')
       .addWidget(
         CardService.newTextInput()
           .setFieldName('apiKey')
-          .setTitle('API key')
-          .setHint('From ' + HiEnergyConfig.docsUrl)
-          .setMultiline(false)
+          .setTitle('API key (optional)')
+          .setHint('Uses X-Api-Key when Auth0 is unavailable')
       )
       .addWidget(
         CardService.newTextInput()
@@ -36,26 +68,26 @@ var HiEnergyCards = (function () {
       )
       .addWidget(
         CardService.newTextButton()
-          .setText('Save')
+          .setText('Save API key')
           .setOnClickAction(
-            CardService.newAction().setFunctionName('handleSaveSettings')
+            CardService.newAction().setFunctionName('handleSaveApiKeySettings')
           )
       );
 
     if (HiEnergyApi.hasApiKey()) {
-      section.addWidget(
+      advanced.addWidget(
         CardService.newTextButton()
-          .setText('Disconnect')
+          .setText('Remove API key')
           .setOnClickAction(
-            CardService.newAction().setFunctionName('handleDisconnectSettings')
+            CardService.newAction().setFunctionName('handleRemoveApiKeySettings')
           )
       );
     }
 
-    card.addSection(section);
+    card.addSection(advanced);
     card.addSection(
       sectionText_(
-        'Your API key is stored in your Google account (UserProperties) and is sent as the <b>X-Api-Key</b> header on each request. It never leaves Google\'s servers except when calling Hi Energy.'
+        'Primary sign-in uses Auth0 OAuth (<b>Authorization: Bearer</b>). Tokens are stored per Google user. Optional API keys are a fallback for automation or local testing.'
       )
     );
 
@@ -63,23 +95,34 @@ var HiEnergyCards = (function () {
   }
 
   function connectCard_() {
-    return CardService.newCardBuilder()
+    var intro = HiEnergyAuth.isConfigured()
+      ? 'Sign in with your Hi Energy account to search advertisers, deals, and transactions without leaving Gmail, Drive, Docs, or Sheets.'
+      : 'Auth0 is not configured for this add-on deployment. Ask an admin to set Auth0 script properties, or use an API key in Settings.';
+
+    var card = CardService.newCardBuilder()
       .setHeader(header_('Hi Energy Rocket', 'Affiliate intelligence in Workspace'))
-      .addSection(
-        sectionText_(
-          'Add your Hi Energy API key to search advertisers, deals, and transactions without leaving Gmail, Drive, Docs, or Sheets.'
+      .addSection(sectionText_(intro));
+
+    var actions = CardService.newCardSection();
+    if (HiEnergyAuth.isConfigured()) {
+      actions.addWidget(
+        CardService.newTextButton()
+          .setText('Sign in with Hi Energy')
+          .setOnClickAction(
+            CardService.newAction().setFunctionName('handleSignIn')
+          )
+      );
+    }
+    actions.addWidget(
+      CardService.newTextButton()
+        .setText('Settings')
+        .setOnClickAction(
+          CardService.newAction().setFunctionName('onSettings')
         )
-      )
-      .addSection(
-        CardService.newCardSection().addWidget(
-          CardService.newTextButton()
-            .setText('Connect API key')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('onSettings')
-            )
-        )
-      )
-      .build();
+    );
+    card.addSection(actions);
+
+    return card.build();
   }
 
   function searchCard_(prefill) {
@@ -124,14 +167,23 @@ var HiEnergyCards = (function () {
   }
 
   function apiErrorCard_(result) {
+    if (result.error === 'AUTH0_NOT_CONFIGURED') {
+      return errorCard_(
+        'Auth0 not configured',
+        'Set AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET, and AUTH0_AUDIENCE in Apps Script project properties, or save an API key in Settings.'
+      );
+    }
+    if (result.error === 'AUTH_REQUIRED') {
+      return connectCard_();
+    }
     if (result.error === 'API_KEY_MISSING') {
       return connectCard_();
     }
     if (result.error === 'API_UNAUTHORIZED') {
       return errorCard_(
-        'Invalid API key',
-        'Hi Energy rejected this API key. Open Settings and paste a current key from ' +
-          HiEnergyConfig.docsUrl + '.'
+        'Session expired',
+        'Hi Energy rejected this sign-in. Sign in again from Settings, or verify your Auth0 audience matches ' +
+          HiEnergyConfig.defaultAuth0Audience + '.'
       );
     }
     if (result.error === 'API_RATE_LIMITED') {

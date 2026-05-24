@@ -15,6 +15,10 @@ var HiEnergyApi = (function () {
     return Boolean(apiKey_());
   }
 
+  function hasAuth_() {
+    return HiEnergyAuth.hasAccess() || hasApiKey_();
+  }
+
   function saveCredentials_(apiKey, apiBase) {
     var props = userProps_();
     props.setProperty(HiEnergyConfig.propApiKey, String(apiKey || '').trim());
@@ -29,11 +33,36 @@ var HiEnergyApi = (function () {
     props.deleteProperty(HiEnergyConfig.propApiBase);
   }
 
+  function authHeaders_() {
+    if (HiEnergyAuth.hasAccess()) {
+      var token = HiEnergyAuth.getAccessToken();
+      if (token) {
+        return { Authorization: 'Bearer ' + token };
+      }
+    }
+
+    var key = apiKey_();
+    if (key) {
+      return { 'X-Api-Key': key };
+    }
+
+    return null;
+  }
+
   function request_(path, options) {
     options = options || {};
-    var key = apiKey_();
-    if (!key) {
-      return { ok: false, code: 0, error: 'API_KEY_MISSING', body: null };
+
+    if (!HiEnergyAuth.isConfigured() && !hasApiKey_()) {
+      return { ok: false, code: 0, error: 'AUTH0_NOT_CONFIGURED', body: null };
+    }
+
+    if (!hasAuth_()) {
+      return { ok: false, code: 0, error: 'AUTH_REQUIRED', body: null };
+    }
+
+    var headers = authHeaders_();
+    if (!headers) {
+      return { ok: false, code: 0, error: 'AUTH_REQUIRED', body: null };
     }
 
     var base = apiBase_().replace(/\/$/, '');
@@ -54,10 +83,7 @@ var HiEnergyApi = (function () {
 
     var fetchOptions = {
       method: (options.method || 'get').toUpperCase(),
-      headers: {
-        'X-Api-Key': key,
-        Accept: 'application/json'
-      },
+      headers: Object.assign({ Accept: 'application/json' }, headers),
       muteHttpExceptions: true
     };
 
@@ -85,6 +111,9 @@ var HiEnergyApi = (function () {
 
     var message = (body && (body.message || body.error)) || text || ('HTTP ' + code);
     if (code === 401) {
+      if (HiEnergyAuth.hasAccess()) {
+        HiEnergyAuth.reset();
+      }
       return { ok: false, code: code, body: body, error: 'API_UNAUTHORIZED', message: message };
     }
     if (code === 429) {
@@ -136,6 +165,7 @@ var HiEnergyApi = (function () {
   }
 
   return {
+    hasAuth: hasAuth_,
     hasApiKey: hasApiKey_,
     saveCredentials: saveCredentials_,
     clearCredentials: clearCredentials_,

@@ -2,43 +2,83 @@
 
 Universal Google Workspace sidebar add-on that calls the [Hi Energy Rocket API](https://app.hienergy.ai/api_documentation) from Gmail, Drive, Docs, Sheets, Slides, and Calendar.
 
+## Authentication
+
+**Primary: Auth0 OAuth** — users click **Sign in with Hi Energy** and the add-on sends `Authorization: Bearer <access_token>` to `/api/v1/*`.
+
+**Fallback: API key** — optional `X-Api-Key` in Settings → Advanced (for local dev or when Auth0 is unavailable).
+
+Hi Energy accepts Auth0 JWTs when the token audience matches `AUTH0_API_AUDIENCE` / `MCP_OAUTH_RESOURCE` (default `https://api.hienergyrocket.com/mcp`).
+
 ## Features
 
-- **Search** advertisers, deals, and transactions via `GET /api/v1/search`
-- **Gmail context** — when reading a message, look up the sender’s domain as an advertiser
-- **Advertiser detail** — commission, network, status, links back to Hi Energy
-- **Per-user API key** — stored in Apps Script `UserProperties`, sent as `X-Api-Key`
+- Search advertisers, deals, and transactions
+- Gmail domain context lookup from the open message
+- Advertiser detail, deals, and transactions
+- Per-user OAuth tokens stored via the [OAuth2 Apps Script library](https://github.com/googleworkspace/apps-script-oauth2)
 
 ## Architecture
 
 ```
-Google Workspace (Gmail / Drive / …)
-        │
-        ▼
-Apps Script add-on (CardService UI)
-        │
-        │  UrlFetchApp + X-Api-Key
-        ▼
-https://app.hienergy.ai/api/v1/*
+Google Workspace
+      │
+      ▼
+Apps Script add-on (CardService)
+      │
+      ├── Auth0 OAuth (authorize + token)
+      │
+      ▼
+Authorization: Bearer …  →  https://app.hienergy.ai/api/v1/*
 ```
 
-Authentication uses your **Hi Energy API key** (same as MCP, OpenClaw, and curl). Google OAuth is only used for Workspace host permissions (external HTTP, Gmail message read). Hi Energy does **not** accept Google ID tokens on `/api/v1`; paste an API key from [API key docs](https://app.hienergy.ai/api_documentation/api_key).
+## One-time admin setup (Auth0)
 
-## Prerequisites
+### 1. Auth0 application
 
-1. Google account with access to [Google Apps Script](https://script.google.com)
-2. Hi Energy API key with access to the data you need
-3. [clasp](https://github.com/google/clasp) (optional, for local edit + push)
+In [Auth0 Dashboard](https://manage.auth0.com):
 
-## Quick start (Apps Script UI)
+1. **Applications** → **Create Application** → **Regular Web Application**
+2. **Allowed Callback URLs** (after you have the Apps Script project ID):
+   ```
+   https://script.google.com/macros/d/YOUR_SCRIPT_ID/usercallback
+   ```
+3. **Allowed Logout URLs** (optional): same origin or your app URL
+4. Note **Domain**, **Client ID**, and **Client Secret**
 
-1. Go to [script.google.com](https://script.google.com) → **New project**
-2. Copy the `.gs` files and `appsscript.json` from this repo into the project
-3. **Project Settings** → enable **Show "appsscript.json" manifest file in editor**
-4. Replace the default manifest with this repo’s `appsscript.json`
-5. **Deploy** → **Test deployments** → **Install** → pick a Google Workspace app (Gmail recommended first)
-6. Open the add-on → **Settings** → paste your API key → **Save**
-7. Use **Search** from the add-on menu or homepage
+### 2. Auth0 API audience
+
+Ensure your Auth0 API identifier matches what Hi Energy expects (same value as `AUTH0_API_AUDIENCE` in project_rocket), e.g.:
+
+```
+https://api.hienergyrocket.com/mcp
+```
+
+Enable **RBAC** / scopes as needed; the add-on requests `openid profile email`.
+
+### 3. Apps Script script properties
+
+In the Apps Script project → **Project Settings** → **Script properties**, add:
+
+| Property | Example |
+|----------|---------|
+| `AUTH0_DOMAIN` | `your-tenant.us.auth0.com` |
+| `AUTH0_CLIENT_ID` | `abc123…` |
+| `AUTH0_CLIENT_SECRET` | `secret…` |
+| `AUTH0_AUDIENCE` | `https://api.hienergyrocket.com/mcp` |
+| `HIENERGY_API_BASE` | (optional) `https://app.hienergy.ai/api/v1` |
+
+End users never see these values.
+
+### 4. OAuth2 library
+
+This repo’s `appsscript.json` already references Google’s OAuth2 library. After `clasp push`, confirm **Libraries** shows **OAuth2** in the Apps Script editor.
+
+## User flow
+
+1. Install the add-on (test or marketplace deployment)
+2. Open the add-on → **Sign in with Hi Energy**
+3. Complete Auth0 login (Google social login works if enabled in Auth0)
+4. Search and browse data; token refresh is handled by the OAuth2 library
 
 ## Local development with clasp
 
@@ -48,58 +88,38 @@ clasp login
 
 cd hienergy-workspace-addon
 cp .clasp.json.example .clasp.json
-# Edit .clasp.json and set your scriptId after `clasp create --type workspace-add-on`
-
-clasp push
-clasp deploy --description "Dev"
-```
-
-Create a new Apps Script project:
-
-```bash
 clasp create --title "Hi Energy Rocket" --type workspace-add-on
 clasp push
 ```
 
-## Configuration
-
-| Setting | Default | Description |
-|--------|---------|-------------|
-| API base | `https://app.hienergy.ai/api/v1` | Override in Settings for staging |
-| API key | — | Required; per Google user |
-
-Environment-specific base URL example: `http://localhost:3000/api/v1` when running project_rocket locally.
+Set script properties in the Apps Script UI, then **Deploy** → **Test deployments**.
 
 ## API endpoints used
 
 | Action | Endpoint |
 |--------|----------|
-| Omnibox search | `GET /search?q=…` |
+| Search | `GET /search?q=…` |
 | Domain lookup | `GET /advertisers/search_by_domain?domain=…` |
-| Advertiser show | `GET /advertisers/:id_or_slug` |
+| Advertiser | `GET /advertisers/:id_or_slug` |
 | Deals | `GET /deals?q=…` |
 | Transactions | `GET /transactions?days=30&sort=commission_desc` |
 
-See full OpenAPI at `GET https://app.hienergy.ai/api/v1/schema`.
+OpenAPI: `GET https://app.hienergy.ai/api/v1/schema`
 
-## Publishing
+## Troubleshooting
 
-1. Configure OAuth consent screen in [Google Cloud Console](https://console.cloud.google.com)
-2. Enable **Google Workspace Marketplace SDK**
-3. Create a **Google Workspace Add-on** deployment in Apps Script
-4. Submit for review (internal testing: deploy to your domain only)
+| Issue | Fix |
+|-------|-----|
+| “Auth0 not configured” | Set all four `AUTH0_*` script properties |
+| Callback URL mismatch | Add exact `usercallback` URL to Auth0 allowed callbacks |
+| 401 from Hi Energy | Check `AUTH0_AUDIENCE` matches API config; user must exist in Hi Energy with matching email |
+| Invalid audience | Token `aud` must include your `AUTH0_AUDIENCE` value |
 
-For production logo URL, host a **128×128 PNG** over HTTPS if Google rejects the SVG logo in the manifest.
+## Security
 
-## Security notes
-
-- API keys live in **UserProperties** (per Google user, not shared across users)
-- Only `script.external_request` is used to reach Hi Energy; no Hi Energy OAuth in v1
-- Gmail scope is read-only for the open message (`gmail.addons.current.message.readonly`)
-
-## Future: Auth0 OAuth
-
-If you prefer OAuth instead of API keys, register an Auth0 app with audience `AUTH0_API_AUDIENCE` and send `Authorization: Bearer <token>`. That flow is not implemented in this repo yet; API key is the supported path for server-style clients.
+- Auth0 **client secret** lives in Script Properties (deployment-wide, not end-user editable in the add-on UI)
+- Access tokens live in per-user Properties via OAuth2 library
+- Optional API keys are per-user in UserProperties
 
 ## License
 
