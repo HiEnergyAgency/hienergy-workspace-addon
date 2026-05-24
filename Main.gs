@@ -14,7 +14,7 @@ function onSearchAction(e) {
   ensureAuthenticated_();
   var query = e && e.parameters ? String(e.parameters.query || '').trim() : '';
   if (query) {
-    return HiEnergyCards.searchResults(query, HiEnergyApi.search(query));
+    return HiEnergyCards.searchResults(query, HiEnergyApi.universalSearch(query));
   }
   return HiEnergyCards.search();
 }
@@ -64,18 +64,13 @@ function handleSearch(e) {
 
   ensureAuthenticated_();
 
-  if (scope === 'transactions') {
-    var txnResult = HiEnergyApi.transactions({ q: query });
-    return HiEnergyCards.transactions('Search: ' + query, txnResult);
-  }
-
-  if (scope === 'deals') {
-    var dealsResult = HiEnergyApi.deals(query);
-    return HiEnergyCards.deals('Search: ' + query, dealsResult);
-  }
-
-  var types = scope === 'advertisers' ? ['advertisers'] : null;
-  var result = HiEnergyApi.search(query, types);
+  var typesByScope = {
+    advertisers: ['advertisers'],
+    deals: ['deals'],
+    transactions: ['transactions']
+  };
+  var types = typesByScope[scope] || null;
+  var result = HiEnergyApi.universalSearch(query, types);
   return HiEnergyCards.searchResults(query, result);
 }
 
@@ -103,7 +98,7 @@ function handleDomainLookup(e) {
   var body = result.body || {};
   var rows = body.data || [];
   if (!rows.length) {
-    return HiEnergyCards.error('No advertiser', 'No Hi Energy advertiser matched domain <b>' + domain + '</b>.');
+    return HiEnergyCards.error('No advertiser', 'No ' + HiEnergyConfig.brandName + ' advertiser matched domain <b>' + domain + '</b>.');
   }
 
   if (rows.length === 1) {
@@ -214,12 +209,23 @@ function buildMcpToolArgs_(toolName, query, params) {
     return { q: query, limit: HiEnergyConfig.perTypeLimit };
   }
   if (toolName === 'universal_search') {
-    return { q: query, per_type_limit: HiEnergyConfig.perTypeLimit };
+    return cleanUniversalSearchArgs_(query, params);
   }
   if (toolName === 'search_advertisers') {
     return { name: query, limit: HiEnergyConfig.perTypeLimit };
   }
   return { q: query };
+}
+
+function cleanUniversalSearchArgs_(query, params) {
+  var args = {
+    q: query,
+    per_type_limit: HiEnergyConfig.perTypeLimit
+  };
+  if (params.types) {
+    args.types = params.types;
+  }
+  return args;
 }
 
 function onGmailMessageOpen(e) {

@@ -6,8 +6,16 @@ var HiEnergyConfig = (function () {
   var PROP_MCP_URL = 'HIENERGY_MCP_URL';
   var DEFAULT_AUTH0_AUDIENCE = 'https://api.hienergyrocket.com/mcp';
   var DEFAULT_MCP_URL = 'https://app.hienergy.ai/mcp';
+  var BRAND_NAME = 'Hi Energy AI';
+  var BRAND_TAGLINE = 'Search affiliate programs, advertisers, and deals';
+  var BRAND_LOGO_URL = APP_ORIGIN + '/branding/hienergy-logo-black.svg';
 
   return {
+    brandName: BRAND_NAME,
+    brandTagline: BRAND_TAGLINE,
+    brandLogoUrl: BRAND_LOGO_URL,
+    brandPrimaryColor: '#8b5cf6',
+    brandSecondaryColor: '#6d28d9',
     defaultApiBase: DEFAULT_API_BASE,
     defaultMcpUrl: DEFAULT_MCP_URL,
     appOrigin: APP_ORIGIN,
@@ -21,7 +29,7 @@ var HiEnergyConfig = (function () {
     messageLimit: 10,
     mcpToolLimit: 12,
     mcpProtocolVersion: '2025-11-25',
-    mcpClientName: 'Hi Energy Workspace Add-on',
+    mcpClientName: BRAND_NAME + ' Workspace Add-on',
     mcpClientVersion: '1.0.0',
     auth0Scope: 'openid profile email',
     defaultAuth0Audience: DEFAULT_AUTH0_AUDIENCE

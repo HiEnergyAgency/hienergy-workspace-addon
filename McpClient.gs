@@ -95,7 +95,7 @@ var HiEnergyMcp = (function () {
         code: httpCode,
         body: payload,
         error: 'API_UNAUTHORIZED',
-        message: 'Hi Energy rejected this sign-in.'
+        message: HiEnergyConfig.brandName + ' rejected this sign-in.'
       };
     }
 
@@ -228,9 +228,16 @@ var HiEnergyMcp = (function () {
 
   function callTool_(name, args) {
     ensureInitialized_();
+    var cleaned = {};
+    Object.keys(args || {}).forEach(function (key) {
+      var value = args[key];
+      if (value !== undefined && value !== null && value !== '') {
+        cleaned[key] = value;
+      }
+    });
     return rpc_('tools/call', {
       name: name,
-      arguments: args || {}
+      arguments: cleaned
     });
   }
 

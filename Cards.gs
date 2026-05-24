@@ -3,7 +3,7 @@ var HiEnergyCards = (function () {
     return CardService.newCardHeader()
       .setTitle(title)
       .setSubtitle(subtitle || '')
-      .setImageUrl('https://app.hienergy.ai/branding/hienergy-logo-black.svg')
+      .setImageUrl(HiEnergyConfig.brandLogoUrl)
       .setImageStyle(CardService.ImageStyle.CIRCLE);
   }
 
@@ -15,7 +15,7 @@ var HiEnergyCards = (function () {
 
   function settingsCard_() {
     var card = CardService.newCardBuilder().setHeader(
-      header_('Settings', 'Hi Energy sign-in and API options')
+      header_('Settings', HiEnergyConfig.brandName + ' sign-in and API options')
     );
 
     if (!HiEnergyAuth.isConfigured()) {
@@ -43,7 +43,7 @@ var HiEnergyCards = (function () {
           .setHeader('Sign in')
           .addWidget(
             CardService.newTextButton()
-              .setText('Sign in with Hi Energy')
+              .setText('Sign in with ' + HiEnergyConfig.brandName)
               .setOnClickAction(
                 CardService.newAction().setFunctionName('handleSignIn')
               )
@@ -91,7 +91,7 @@ var HiEnergyCards = (function () {
         .addWidget(
           CardService.newDecoratedText()
             .setTopLabel('Backend')
-            .setText('Hi Energy MCP')
+            .setText(HiEnergyConfig.brandName + ' MCP')
             .setBottomLabel(HiEnergyApi.getMcpUrl())
             .setWrapText(true)
         )
@@ -114,7 +114,7 @@ var HiEnergyCards = (function () {
     );
     card.addSection(
       sectionText_(
-        'All Hi Energy requests go through the MCP server (<b>POST /mcp</b>) using Auth0 bearer tokens or an API key. Tokens are stored per Google user.'
+        'All ' + HiEnergyConfig.brandName + ' requests go through the MCP server (<b>POST /mcp</b>) using Auth0 bearer tokens or an API key. Tokens are stored per Google user.'
       )
     );
 
@@ -123,18 +123,18 @@ var HiEnergyCards = (function () {
 
   function connectCard_() {
     var intro = HiEnergyAuth.isConfigured()
-      ? 'Sign in with your Hi Energy account to search advertisers, deals, and transactions without leaving Gmail, Drive, Docs, or Sheets.'
+      ? 'Sign in with your ' + HiEnergyConfig.brandName + ' account to search advertisers, deals, and transactions without leaving Gmail, Drive, Docs, or Sheets.'
       : 'Auth0 is not configured for this add-on deployment. Ask an admin to set Auth0 script properties, or use an API key in Settings.';
 
     var card = CardService.newCardBuilder()
-      .setHeader(header_('Hi Energy Rocket', 'Affiliate intelligence in Workspace'))
+      .setHeader(header_(HiEnergyConfig.brandName, HiEnergyConfig.brandTagline))
       .addSection(sectionText_(intro));
 
     var actions = CardService.newCardSection();
     if (HiEnergyAuth.isConfigured()) {
       actions.addWidget(
         CardService.newTextButton()
-          .setText('Sign in with Hi Energy')
+          .setText('Sign in with ' + HiEnergyConfig.brandName)
           .setOnClickAction(
             CardService.newAction().setFunctionName('handleSignIn')
           )
@@ -154,7 +154,7 @@ var HiEnergyCards = (function () {
 
   function searchCard_(prefill) {
     var card = CardService.newCardBuilder().setHeader(
-      header_('Search', 'Advertisers, deals, and more')
+      header_('Search', HiEnergyConfig.brandName)
     );
 
     var section = CardService.newCardSection()
@@ -211,7 +211,7 @@ var HiEnergyCards = (function () {
     if (result.error === 'API_UNAUTHORIZED') {
       return errorCard_(
         'Session expired',
-        'Hi Energy rejected this sign-in. Sign in again from Settings, or verify your Auth0 audience matches ' +
+        'Hi Energy AI rejected this sign-in. Sign in again from Settings, or verify your Auth0 audience matches ' +
           HiEnergyConfig.defaultAuth0Audience + '.'
       );
     }
@@ -278,7 +278,7 @@ var HiEnergyCards = (function () {
 
     types.forEach(function (type) {
       var bucket = results[type] || {};
-      var rows = bucket.data || [];
+      var rows = bucket.data || (Array.isArray(bucket) ? bucket : []);
       if (!rows.length) {
         return;
       }
@@ -363,7 +363,7 @@ var HiEnergyCards = (function () {
 
     var actions = CardService.newCardSection();
     var appUrl = attrs.url || (id ? HiEnergyConfig.appOrigin + '/advertisers/' + (attrs.slug || id) : null);
-    var openBtn = openUrlButton_('Open in Hi Energy', appUrl);
+    var openBtn = openUrlButton_('Open in ' + HiEnergyConfig.brandName, appUrl);
     if (openBtn) {
       actions.addWidget(openBtn);
     }
@@ -572,7 +572,7 @@ var HiEnergyCards = (function () {
     var domain = context.domain;
     var message = context.message || {};
     var card = CardService.newCardBuilder().setHeader(
-      header_('Email context', 'Look up programs for this sender')
+      header_('Email context', HiEnergyConfig.brandName)
     );
 
     var senderSection = CardService.newCardSection().setHeader('Sender');
@@ -645,7 +645,7 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       CardService.newCardSection()
-        .setHeader('Hi Energy')
+        .setHeader(HiEnergyConfig.brandName)
         .addWidget(
           CardService.newTextButton()
             .setText('Find advertiser')
@@ -657,7 +657,7 @@ var HiEnergyCards = (function () {
         )
         .addWidget(
           CardService.newTextButton()
-            .setText('Search Hi Energy')
+            .setText('Search ' + HiEnergyConfig.brandName)
             .setOnClickAction(
               CardService.newAction()
                 .setFunctionName('onSearchAction')
@@ -688,7 +688,7 @@ var HiEnergyCards = (function () {
 
     var tools = (result.body && result.body.tools) || [];
     var card = CardService.newCardBuilder().setHeader(
-      header_('MCP Tools', 'Curated Hi Energy server tools')
+      header_('MCP Tools', HiEnergyConfig.brandName + ' server tools')
     );
 
     if (!tools.length) {

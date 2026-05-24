@@ -55,6 +55,38 @@ var HiEnergyApi = (function () {
     );
   }
 
+  function cleanArgs_(args) {
+    var cleaned = {};
+    Object.keys(args || {}).forEach(function (key) {
+      var value = args[key];
+      if (value !== undefined && value !== null && value !== '') {
+        cleaned[key] = value;
+      }
+    });
+    return cleaned;
+  }
+
+  function normalizeSearchBody_(body) {
+    if (!body || typeof body !== 'object') {
+      return { results: {} };
+    }
+    if (body.results) {
+      return body;
+    }
+    if (body.data && body.data.results) {
+      return body.data;
+    }
+    if (body.structuredContent && body.structuredContent.results) {
+      return body.structuredContent;
+    }
+    return body;
+  }
+
+  function isValidSearchBody_(body) {
+    var normalized = normalizeSearchBody_(body);
+    return Boolean(normalized && typeof normalized.results === 'object');
+  }
+
   function withToolFallback_(toolName, toolArgs, path, options) {
     var result = HiEnergyMcp.callTool(toolName, toolArgs);
     if (result.ok) {
@@ -63,23 +95,38 @@ var HiEnergyApi = (function () {
     return request_(path, options);
   }
 
+  function universalSearch_(query, types) {
+    var typesValue = types && types.length ? types.join(',') : null;
+    var toolArgs = cleanArgs_({
+      q: query,
+      per_type_limit: HiEnergyConfig.perTypeLimit,
+      types: typesValue
+    });
+    var restQuery = cleanArgs_({
+      q: query,
+      per_type_limit: HiEnergyConfig.perTypeLimit,
+      types: typesValue
+    });
+
+    var result = HiEnergyMcp.callTool('universal_search', toolArgs);
+    if (result.ok && isValidSearchBody_(result.body)) {
+      return {
+        ok: true,
+        code: result.code,
+        body: normalizeSearchBody_(result.body),
+        error: null
+      };
+    }
+
+    var fallback = request_('/search', { query: restQuery });
+    if (fallback.ok) {
+      fallback.body = normalizeSearchBody_(fallback.body);
+    }
+    return fallback;
+  }
+
   function search_(query, types) {
-    return withToolFallback_(
-      'universal_search',
-      {
-        q: query,
-        per_type_limit: HiEnergyConfig.perTypeLimit,
-        types: types && types.length ? types.join(',') : undefined
-      },
-      '/search',
-      {
-        query: {
-          q: query,
-          per_type_limit: HiEnergyConfig.perTypeLimit,
-          types: types && types.length ? types.join(',') : null
-        }
-      }
-    );
+    return universalSearch_(query, types);
   }
 
   function advertiserByDomain_(domain) {
@@ -156,7 +203,11 @@ var HiEnergyApi = (function () {
     if (!hasAuth_()) {
       return { ok: false, code: 0, error: 'AUTH_REQUIRED', body: null };
     }
-    return HiEnergyMcp.callTool(name, args || {});
+    var result = HiEnergyMcp.callTool(name, args || {});
+    if (result.ok && name === 'universal_search') {
+      result.body = normalizeSearchBody_(result.body);
+    }
+    return result;
   }
 
   return {
@@ -167,6 +218,7 @@ var HiEnergyApi = (function () {
     getApiBase: apiBase_,
     getMcpUrl: HiEnergyMcp.getMcpUrl,
     search: search_,
+    universalSearch: universalSearch_,
     advertiserByDomain: advertiserByDomain_,
     advertiser: advertiser_,
     deals: deals_,

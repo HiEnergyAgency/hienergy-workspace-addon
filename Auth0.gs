@@ -72,7 +72,7 @@ var HiEnergyAuth = (function () {
     if (!service.hasAccess()) {
       CardService.newAuthorizationException()
         .setAuthorizationUrl(service.getAuthorizationUrl())
-        .setResourceDisplayName('Hi Energy Rocket')
+        .setResourceDisplayName(HiEnergyConfig.brandName)
         .throwException();
     }
   }
@@ -94,7 +94,7 @@ var HiEnergyAuth = (function () {
     var authorized = service.handleCallback(request);
     if (authorized) {
       return HtmlService.createHtmlOutput(
-        '<p>Signed in to Hi Energy Rocket.</p><p>Return to Gmail or your Workspace app and reopen the add-on.</p>'
+        '<p>Signed in to ' + HiEnergyConfig.brandName + '.</p><p>Return to Gmail or your Workspace app and reopen the add-on.</p>'
       );
     }
     return HtmlService.createHtmlOutput('Sign-in was denied or failed. Close this tab and try again.');
