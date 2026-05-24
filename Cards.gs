@@ -534,7 +534,10 @@ var HiEnergyCards = (function () {
         ' · ' + (attrs.commission_amount || attrs.commission || '');
     }
     if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
-      return personName_(attrs) || attrs.email || id || 'Contact';
+      var given = attrs.given_name || attrs.givenName || attrs.first_name || '';
+      var family = attrs.family_name || attrs.familyName || attrs.last_name || '';
+      var combined = [given, family].filter(Boolean).join(' ').trim();
+      return combined || personName_(attrs) || attrs.email || id || 'Contact';
     }
     return attrs.name || attrs.title || attrs.display_name || id || 'Result';
   }
@@ -572,7 +575,29 @@ var HiEnergyCards = (function () {
       return [attrs.network_name, attrs.transaction_date, attrs.status].filter(Boolean).join(' · ');
     }
     if (type === 'contacts' || type === 'advertiser_contacts' || type === 'users') {
-      return [attrs.email, attrs.job_title, attrs.advertiser_name, attrs.organization, attrs.phone]
+      var given = attrs.given_name || attrs.givenName || attrs.first_name || '';
+      var linkedin = attrs.linkedin_url || attrs.linkedin || attrs.linkedin_profile_url || '';
+      var advertiserCompany =
+        attrs.advertiser_name ||
+        attrs.advertiser_company ||
+        attrs.advertiser_company_name ||
+        attrs.company_name ||
+        attrs.company ||
+        (attrs.advertiser &&
+          (attrs.advertiser.display_name ||
+            attrs.advertiser.name ||
+            (attrs.advertiser.attributes &&
+              (attrs.advertiser.attributes.display_name || attrs.advertiser.attributes.name)))) ||
+        attrs.organization ||
+        '';
+      return [
+        advertiserCompany,
+        given ? 'Given: ' + given : '',
+        attrs.email,
+        attrs.job_title || attrs.title,
+        linkedin,
+        attrs.phone
+      ]
         .filter(Boolean)
         .join(' · ');
     }
@@ -716,7 +741,14 @@ var HiEnergyCards = (function () {
                       email: contactEmail,
                       name: personName_(cAttrs),
                       advertiserId: String(cAttrs.advertiser_id || ''),
-                      advertiserName: String(cAttrs.advertiser_name || cAttrs.organization || '')
+                      advertiserName: String(
+                        cAttrs.advertiser_name ||
+                          cAttrs.advertiser_company ||
+                          cAttrs.advertiser_company_name ||
+                          cAttrs.company_name ||
+                          cAttrs.organization ||
+                          ''
+                      )
                     })
                   )
               );
@@ -1683,6 +1715,21 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
+  function canAddMoreRows_(result) {
+    if (!result || !result.ok || result.exhausted) {
+      return false;
+    }
+    if (result.hasMore) {
+      return true;
+    }
+    try {
+      var session = HiEnergyMcpExport.readExportSession();
+      return !!(session && !session.exhausted);
+    } catch (err) {
+      return false;
+    }
+  }
+
   function sheetResultCard_(result, options) {
     options = options || {};
     if (!options.hostApp) {
@@ -1735,6 +1782,27 @@ var HiEnergyCards = (function () {
         )
     );
 
+    var showAddMore = canAddMoreRows_(result);
+    if (showAddMore) {
+      card.addSection(
+        CardService.newCardSection().addWidget(
+          filledButton_(
+            'Add more',
+            cardAction_('handleAddMoreRowsToSheet', options.hostApp ? { hostApp: options.hostApp } : null)
+          )
+        )
+      );
+      card.addSection(
+        CardService.newCardSection().addWidget(
+          CardService.newTextButton()
+            .setText('Fetch all remaining rows')
+            .setOnClickAction(
+              cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
+            )
+        )
+      );
+    }
+
     var primary = filledOpenUrlButton_(
       result.usedActiveSpreadsheet ? 'Open spreadsheet' : 'Open in Sheets',
       result.url
@@ -1744,21 +1812,6 @@ var HiEnergyCards = (function () {
     }
 
     var followUp = CardService.newCardSection();
-    if (result.hasMore) {
-      followUp.addWidget(
-        filledButton_(
-          'Add more rows (up to ' + HiEnergyConfig.sheetRowLimit + ')',
-          cardAction_('handleAddMoreRowsToSheet', options.hostApp ? { hostApp: options.hostApp } : null)
-        )
-      );
-      followUp.addWidget(
-        CardService.newTextButton()
-          .setText('Fetch all remaining rows')
-          .setOnClickAction(
-            cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
-          )
-      );
-    }
     followUp.addWidget(
       CardService.newTextButton()
         .setText('Create another sheet')

@@ -81,6 +81,56 @@ describe('HiEnergyMcpExport', function () {
     expect(draft.body).toContain('Hi Alex');
     expect(draft.body).toContain('Spring sale');
   });
+
+  it('exports contacts with advertiser link first plus given name and LinkedIn', function () {
+    const tables = ctx.HiEnergyMcpExport.tablesFromMcpResult('get_advertiser_contacts', {
+      data: [
+        {
+          id: 'c1',
+          attributes: {
+            given_name: 'Alex',
+            family_name: 'Smith',
+            email: 'alex@nike.com',
+            advertiser_id: 'nike',
+            advertiser_name: 'Nike',
+            linkedin_url: 'https://www.linkedin.com/in/alexsmith'
+          }
+        }
+      ]
+    });
+
+    expect(tables[0].headers[0]).toBe('Advertiser Hi Energy link');
+    expect(tables[0].headers[1]).toBe('Advertiser company');
+    expect(tables[0].headers[2]).toBe('Name');
+    expect(tables[0].headers[3]).toBe('Given name');
+    expect(tables[0].headers[10]).toBe('LinkedIn profile');
+    expect(tables[0].rows[0][0]).toBe('https://app.hienergy.ai/a/nike');
+    expect(tables[0].rows[0][1]).toBe('Nike');
+    expect(tables[0].rows[0][2]).toBe('Alex Smith');
+    expect(tables[0].rows[0][3]).toBe('Alex');
+    expect(tables[0].rows[0][10]).toBe('https://www.linkedin.com/in/alexsmith');
+  });
+
+  it('fills advertiser company from export query when contact rows omit it', function () {
+    const tables = ctx.HiEnergyMcpExport.tablesFromMcpResult(
+      'get_advertiser_contacts',
+      {
+        data: [
+          {
+            id: 'c2',
+            attributes: {
+              given_name: 'Sam',
+              email: 'sam@nike.com',
+              advertiser_id: 'nike'
+            }
+          }
+        ]
+      },
+      { advertiserCompanyFallback: 'Nike' }
+    );
+
+    expect(tables[0].rows[0][1]).toBe('Nike');
+  });
 });
 
 describe('HiEnergySheets', function () {

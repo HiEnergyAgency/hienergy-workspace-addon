@@ -295,7 +295,8 @@ describe('HiEnergyCards search results', function () {
       .map(function (entry) {
         return entry.args[0];
       });
-    expect(bottomLabels.some(function (l) { return l && l.indexOf('sydney@example.com') === 0; })).toBe(true);
+    expect(bottomLabels.some(function (l) { return l && l.indexOf('sydney@example.com') !== -1; })).toBe(true);
+    expect(bottomLabels.some(function (l) { return l && l.indexOf('Given: Sydney') !== -1; })).toBe(true);
   });
 
   it('falls back to email as the contact name when no name is set', function () {
@@ -368,3 +369,49 @@ describe('HiEnergyCards search results', function () {
     expect(actionFunctionNames()).toContain('handleExportCachedAdvertisersToSheet');
   });
 });
+
+describe('HiEnergyCards sheet result', function () {
+  let ctx;
+  let captured;
+
+  beforeEach(function () {
+    captured = [];
+    const runtime = createGasContext({});
+    runtime.context.CardService = createCardServiceMock(captured);
+    loadGasFiles(runtime.context, ['Config.gs', 'McpExport.gs', 'Cards.gs']);
+    ctx = runtime.context;
+  });
+
+  function buttonTexts() {
+    return captured
+      .filter(function (entry) {
+        return entry.method === 'setText';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+  }
+
+  it('shows Add more when the export can continue paging', function () {
+    ctx.HiEnergyCards.sheetResult({
+      ok: true,
+      hasMore: true,
+      rowCount: 45,
+      sheetCount: 3,
+      usedActiveSpreadsheet: true,
+      url: 'https://docs.google.com/spreadsheets/d/abc/edit'
+    });
+    expect(buttonTexts()).toContain('Add more');
+    expect(actionFunctionNamesFrom(captured)).toContain('handleAddMoreRowsToSheet');
+  });
+});
+
+function actionFunctionNamesFrom(captured) {
+  return captured
+    .filter(function (entry) {
+      return entry.method === 'setFunctionName';
+    })
+    .map(function (entry) {
+      return entry.args[0];
+    });
+}

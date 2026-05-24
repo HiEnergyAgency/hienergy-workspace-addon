@@ -27,6 +27,45 @@ var HiEnergyContacts = (function () {
     return org.name || org.title || '';
   }
 
+  function givenName_(person) {
+    var names = person.names || [];
+    if (!names.length) {
+      return '';
+    }
+    return names[0].givenName || '';
+  }
+
+  function familyName_(person) {
+    var names = person.names || [];
+    if (!names.length) {
+      return '';
+    }
+    return names[0].familyName || '';
+  }
+
+  function jobTitle_(person) {
+    var orgs = person.organizations || [];
+    if (!orgs.length) {
+      return '';
+    }
+    return orgs[0].title || '';
+  }
+
+  function linkedinUrl_(person) {
+    var urls = person.urls || [];
+    for (var i = 0; i < urls.length; i += 1) {
+      var entry = urls[i];
+      if (!entry || !entry.value) {
+        continue;
+      }
+      var type = String(entry.type || '').toLowerCase();
+      if (entry.value.indexOf('linkedin.com') !== -1 || type.indexOf('linkedin') !== -1) {
+        return entry.value;
+      }
+    }
+    return '';
+  }
+
   function normalizePerson_(person) {
     if (!person) {
       return null;
@@ -34,9 +73,13 @@ var HiEnergyContacts = (function () {
     return {
       resourceName: person.resourceName || '',
       name: primaryName_(person),
+      givenName: givenName_(person),
+      familyName: familyName_(person),
       email: primaryEmail_(person),
       phone: primaryPhone_(person),
-      organization: primaryOrganization_(person)
+      organization: primaryOrganization_(person),
+      jobTitle: jobTitle_(person),
+      linkedin: linkedinUrl_(person)
     };
   }
 
@@ -49,7 +92,7 @@ var HiEnergyContacts = (function () {
     try {
       var response = People.People.searchContacts({
         query: normalized,
-        readMask: 'names,emailAddresses,organizations,phoneNumbers',
+        readMask: 'names,emailAddresses,organizations,phoneNumbers,urls',
         pageSize: HiEnergyConfig.contactLimit
       });
 
@@ -98,7 +141,7 @@ var HiEnergyContacts = (function () {
       do {
         var request = {
           query: normalized,
-          readMask: 'names,emailAddresses,organizations,phoneNumbers',
+          readMask: 'names,emailAddresses,organizations,phoneNumbers,urls',
           pageSize: Math.min(pageSize, limit - contacts.length)
         };
         if (pageToken) {

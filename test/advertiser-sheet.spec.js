@@ -158,8 +158,11 @@ describe('HiEnergyMcpExport google contacts', function () {
       }
     ]);
 
-    expect(tables[0].rows[0][0]).toBe('Jane Doe');
-    expect(tables[0].rows[0][1]).toBe('jane@acme.com');
+    expect(tables[0].headers[0]).toBe('Advertiser Hi Energy link');
+    expect(tables[0].headers[1]).toBe('Advertiser company');
+    expect(tables[0].rows[0][1]).toBe('Acme');
+    expect(tables[0].rows[0][2]).toBe('Jane Doe');
+    expect(tables[0].rows[0][5]).toBe('jane@acme.com');
   });
 });
 

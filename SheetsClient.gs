@@ -90,6 +90,12 @@ var HiEnergySheets = (function () {
       exportResult.hasMore = !paginationState.exhausted;
       exportResult.exhausted = !!paginationState.exhausted;
       exportResult.rowsThisBatch = paginationState.rowsThisBatch || exportResult.rowCount;
+      if (paginationState.nextPage) {
+        exportResult.nextPage = paginationState.nextPage;
+      }
+      if (paginationState.seenKeys) {
+        exportResult.seenKeys = paginationState.seenKeys;
+      }
     }
     return exportResult;
   }
@@ -164,14 +170,14 @@ var HiEnergySheets = (function () {
 
   function exportCachedSearch_() {
     var cached = HiEnergyMcpExport.readCachedSearch();
-    if (!cached || !cached.body) {
+    if (!cached || !cached.query) {
       return {
         ok: false,
         error: 'NO_CACHE',
         message: 'Run a Hi Energy search first, then export the latest results.'
       };
     }
-    return createFromSearchResult_(cached.query, cached.body);
+    return exportSearch_(cached.query, cached.scope || 'all', cached.searchMode || 'name');
   }
 
   function exportCachedMcpTool_() {
@@ -451,9 +457,13 @@ var HiEnergySheets = (function () {
       };
     }
 
-    var tables = HiEnergyMcpExport.tablesFromMcpResult(toolNameForExport_(exportType), {
-      data: batch
-    });
+    var tables = HiEnergyMcpExport.tablesFromMcpResult(
+      toolNameForExport_(exportType),
+      { data: batch },
+      {
+        advertiserCompanyFallback: exportType === 'contacts' ? params.query : ''
+      }
+    );
     if (!tables.length) {
       return { ok: false, error: 'NO_DATA', message: 'No rows to export.' };
     }
@@ -474,8 +484,78 @@ var HiEnergySheets = (function () {
     return mergeExportMeta_(written, result.body, {
       exhausted: result.pagination.exhausted,
       hasMore: result.pagination.hasMore,
-      rowsThisBatch: batch.length
+      rowsThisBatch: batch.length,
+      nextPage: result.pagination.nextPage,
+      seenKeys: result.pagination.seenKeys
     });
+  }
+
+  function exportMoreAll_(session, fetchAll) {
+    var query = session.query || '';
+    var types = session.types || {};
+    var typeList = ['advertisers', 'deals', 'transactions'];
+    var totalAppended = 0;
+    var lastExport = null;
+    var anyHasMore = false;
+
+    typeList.forEach(function (type, index) {
+      var state = types[type] || { nextPage: 1, seenKeys: [], exhausted: true };
+      if (state.exhausted) {
+        return;
+      }
+
+      var part = exportPaginated_(type, { query: query }, {
+        append: true,
+        startPage: state.nextPage || 1,
+        seenKeys: state.seenKeys || null,
+        skipSession: true,
+        fetchAll: !!fetchAll,
+        maxPages: fetchAll ? HiEnergyConfig.exportMaxPages : null
+      });
+
+      if (!part.ok) {
+        return;
+      }
+
+      types[type] = {
+        nextPage: part.nextPage || 1,
+        seenKeys: part.seenKeys || [],
+        exhausted: !!part.exhausted
+      };
+      if (!part.exhausted) {
+        anyHasMore = true;
+      }
+      totalAppended += part.rowsThisBatch || part.rowCount || 0;
+      lastExport = part;
+    });
+
+    HiEnergyMcpExport.saveExportSession({
+      exportType: 'all',
+      query: query,
+      toolName: 'universal_search',
+      sheetTabName: 'Advertisers',
+      spreadsheetId: session.spreadsheetId || '',
+      types: types,
+      exhausted: !anyHasMore,
+      nextPage: 1,
+      seenKeys: [],
+      totalCollected: (session.totalCollected || 0) + totalAppended
+    });
+
+    if (!lastExport) {
+      return {
+        ok: false,
+        error: 'EXHAUSTED',
+        message: 'All available rows have already been exported.'
+      };
+    }
+
+    lastExport.hasMore = anyHasMore;
+    lastExport.exhausted = !anyHasMore;
+    lastExport.appended = true;
+    lastExport.rowCount = totalAppended;
+    lastExport.sheetCount = 3;
+    return lastExport;
   }
 
   function exportMoreFromSession_(fetchAll) {
@@ -493,6 +573,10 @@ var HiEnergySheets = (function () {
         error: 'EXHAUSTED',
         message: 'All available rows have already been exported.'
       };
+    }
+
+    if (session.exportType === 'all') {
+      return exportMoreAll_(session, fetchAll);
     }
 
     var params = {
@@ -575,14 +659,14 @@ var HiEnergySheets = (function () {
 
   function exportCachedAdvertisers_() {
     var cached = HiEnergyMcpExport.readCachedAdvertiserSearch();
-    if (!cached || !cached.body) {
+    if (!cached || !cached.query) {
       return {
         ok: false,
         error: 'NO_CACHE',
         message: 'Search advertisers first, then export the latest results.'
       };
     }
-    return createFromAdvertiserSearch_(cached.query, cached.searchMode, cached.body);
+    return exportAdvertisers_(cached.query, cached.searchMode || 'name');
   }
 
   function exportDeals_(query) {
@@ -602,14 +686,14 @@ var HiEnergySheets = (function () {
 
   function exportCachedDeals_() {
     var cached = HiEnergyMcpExport.readCachedDealsSearch();
-    if (!cached || !cached.body) {
+    if (!cached || !cached.query) {
       return {
         ok: false,
         error: 'NO_CACHE',
         message: 'Search deals first, then export the latest results.'
       };
     }
-    return createFromApiResult_('Deals', cached.query, 'search_deals', cached.body);
+    return exportDeals_(cached.query);
   }
 
   function exportTransactions_(query, days, advertiserId) {
@@ -634,15 +718,15 @@ var HiEnergySheets = (function () {
 
   function exportCachedTransactions_() {
     var cached = HiEnergyMcpExport.readCachedTransactionsSearch();
-    if (!cached || !cached.body) {
+    if (!cached || !cached.query) {
       return {
         ok: false,
         error: 'NO_CACHE',
         message: 'Search transactions first, then export the latest results.'
       };
     }
-    var suffix = cached.meta && cached.meta.days ? cached.meta.days + ' days' : '';
-    return createFromApiResult_('Transactions', cached.query, 'search_transactions', cached.body, suffix);
+    var days = (cached.meta && cached.meta.days) || 30;
+    return exportTransactions_(cached.query, days);
   }
 
   function exportAdvertiserContacts_(advertiser) {
@@ -666,19 +750,14 @@ var HiEnergySheets = (function () {
 
   function exportCachedAdvertiserContacts_() {
     var cached = HiEnergyMcpExport.readCachedAdvertiserContactsSearch();
-    if (!cached || !cached.body) {
+    if (!cached || !cached.query) {
       return {
         ok: false,
         error: 'NO_CACHE',
         message: 'Fetch contacts first, then export the latest results.'
       };
     }
-    return createFromApiResult_(
-      'Contacts',
-      cached.query,
-      'get_advertiser_contacts',
-      cached.body
-    );
+    return exportAdvertiserContacts_(cached.query);
   }
 
   function exportGoogleContacts_(query) {
@@ -727,9 +806,11 @@ var HiEnergySheets = (function () {
     ensureAuthenticatedForExport_();
 
     if (scope === 'all') {
-      var combinedBody = { results: {} };
+      var types = {};
       var totalRows = 0;
       var lastExport = null;
+      var anyHasMore = false;
+      var spreadsheetId = '';
       ['advertisers', 'deals', 'transactions'].forEach(function (type, index) {
         var part = exportPaginated_(type, { query: query }, {
           skipSession: true,
@@ -738,6 +819,15 @@ var HiEnergySheets = (function () {
         if (part.ok) {
           lastExport = part;
           totalRows += part.rowCount || 0;
+          spreadsheetId = part.spreadsheetId || spreadsheetId;
+          types[type] = {
+            nextPage: part.nextPage || 1,
+            seenKeys: part.seenKeys || [],
+            exhausted: !!part.exhausted
+          };
+          if (!part.exhausted) {
+            anyHasMore = true;
+          }
         }
       });
       if (!lastExport || !lastExport.ok) {
@@ -748,13 +838,17 @@ var HiEnergySheets = (function () {
         query: query,
         toolName: 'universal_search',
         sheetTabName: 'Advertisers',
-        exhausted: false,
+        spreadsheetId: spreadsheetId,
+        types: types,
+        exhausted: !anyHasMore,
         nextPage: 1,
         seenKeys: [],
         totalCollected: totalRows
       });
-      lastExport.hasMore = true;
+      lastExport.hasMore = anyHasMore;
+      lastExport.exhausted = !anyHasMore;
       lastExport.sheetCount = 3;
+      lastExport.rowCount = totalRows;
       return lastExport;
     }
 

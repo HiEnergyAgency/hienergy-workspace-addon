@@ -122,25 +122,111 @@ var HiEnergyMcpExport = (function () {
     });
   }
 
+  function contactGivenName_(attrs) {
+    return first_(attrs.given_name, attrs.givenName, attrs.first_name, attrs.firstName);
+  }
+
+  function contactFamilyName_(attrs) {
+    return first_(attrs.family_name, attrs.familyName, attrs.last_name, attrs.lastName);
+  }
+
+  function contactFullName_(attrs, id) {
+    var given = contactGivenName_(attrs);
+    var family = contactFamilyName_(attrs);
+    var combined = [given, family].filter(Boolean).join(' ').trim();
+    return (
+      combined ||
+      attrs.full_name ||
+      attrs.display_name ||
+      attrs.name ||
+      attrs.email ||
+      id ||
+      ''
+    );
+  }
+
+  function nestedAdvertiserAttrs_(attrs) {
+    var advertiser = attrs.advertiser;
+    if (!advertiser) {
+      return {};
+    }
+    if (advertiser.attributes) {
+      return advertiser.attributes;
+    }
+    if (advertiser.data && advertiser.data.attributes) {
+      return advertiser.data.attributes;
+    }
+    if (advertiser.data) {
+      return attrs_(advertiser.data);
+    }
+    return attrs_(advertiser);
+  }
+
+  function contactAdvertiserCompany_(attrs) {
+    var nested = nestedAdvertiserAttrs_(attrs);
+    return first_(
+      attrs.advertiser_name,
+      attrs.advertiser_company,
+      attrs.advertiser_company_name,
+      attrs.company_name,
+      attrs.company,
+      nested.display_name,
+      nested.name,
+      nested.company_name,
+      nested.company,
+      attrs.organization
+    );
+  }
+
+  function linkedinProfile_(attrs) {
+    var direct = first_(
+      attrs.linkedin_url,
+      attrs.linkedin,
+      attrs.linkedin_profile_url,
+      attrs.linkedin_profile,
+      attrs.linkedinProfileUrl,
+      attrs.social_linkedin
+    );
+    if (direct) {
+      return direct;
+    }
+    var urls = attrs.urls;
+    if (!Array.isArray(urls)) {
+      return '';
+    }
+    for (var i = 0; i < urls.length; i += 1) {
+      var entry = urls[i];
+      if (!entry) {
+        continue;
+      }
+      if (typeof entry === 'string' && entry.indexOf('linkedin.com') !== -1) {
+        return entry;
+      }
+      var value = entry.url || entry.value || entry.href || '';
+      var type = String(entry.type || entry.label || '').toLowerCase();
+      if (value && (value.indexOf('linkedin.com') !== -1 || type.indexOf('linkedin') !== -1)) {
+        return value;
+      }
+    }
+    return '';
+  }
+
   function contactRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
       var id = idOf_(row, a);
-      var fullName =
-        [a.given_name, a.family_name].filter(Boolean).join(' ') ||
-        a.full_name ||
-        a.name ||
-        '';
       return [
         advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
-        first_(fullName, a.email, id),
+        contactAdvertiserCompany_(a),
+        contactFullName_(a, id),
+        contactGivenName_(a),
+        contactFamilyName_(a),
         a.email || '',
         a.job_title || a.title || '',
         a.department || '',
-        a.advertiser_name || a.organization || '',
         a.advertiser_id || '',
         a.phone || '',
-        a.linkedin_url || a.linkedin || '',
+        linkedinProfile_(a),
         a.country || a.location || '',
         a.role || '',
         a.notes || '',
@@ -226,14 +312,16 @@ var HiEnergyMcpExport = (function () {
       title: 'Contacts',
       headers: [
         'Advertiser Hi Energy link',
+        'Advertiser company',
         'Name',
+        'Given name',
+        'Family name',
         'Email',
         'Title',
         'Department',
-        'Advertiser',
         'Advertiser ID',
         'Phone',
-        'LinkedIn',
+        'LinkedIn profile',
         'Country',
         'Role',
         'Notes',
@@ -308,22 +396,42 @@ var HiEnergyMcpExport = (function () {
     ];
   }
 
-  function tablesFromContactsBody_(body) {
+  function applyContactCompanyFallback_(tables, fallback) {
+    var company = String(fallback || '').trim();
+    if (!company || !tables || !tables.length) {
+      return;
+    }
+    tables.forEach(function (table) {
+      if (!table.rows || table.headers[1] !== 'Advertiser company') {
+        return;
+      }
+      table.rows.forEach(function (row) {
+        if (!row[1]) {
+          row[1] = company;
+        }
+      });
+    });
+  }
+
+  function tablesFromContactsBody_(body, options) {
     var rows = (body && body.data) || (Array.isArray(body) ? body : []);
     if (!rows.length) {
       return [];
     }
     var spec = SHEET_SPECS_.contacts;
-    return [
+    var tables = [
       {
         name: spec.title,
         headers: spec.headers,
         rows: spec.rows(rows.slice(0, HiEnergyConfig.sheetRowLimit))
       }
     ];
+    applyContactCompanyFallback_(tables, options && options.advertiserCompanyFallback);
+    return tables;
   }
 
-  function tablesFromMcpResult_(toolName, body) {
+  function tablesFromMcpResult_(toolName, body, options) {
+    options = options || {};
     if (toolName === 'universal_search' || !toolName) {
       return tablesFromSearchBody_(body);
     }
@@ -338,7 +446,7 @@ var HiEnergyMcpExport = (function () {
       return tablesFromTransactionsBody_(body);
     }
     if (toolName === 'get_advertiser_contacts') {
-      return tablesFromContactsBody_(body);
+      return tablesFromContactsBody_(body, options);
     }
 
     return [
@@ -486,10 +594,20 @@ var HiEnergyMcpExport = (function () {
   function googleContactRows_(contacts) {
     return contacts.map(function (contact) {
       return [
-        contact.name || '',
-        contact.email || '',
+        '',
         contact.organization || '',
+        contact.name || '',
+        contact.givenName || '',
+        contact.familyName || '',
+        contact.email || '',
+        contact.jobTitle || '',
+        '',
+        '',
         contact.phone || '',
+        contact.linkedin || '',
+        '',
+        '',
+        '',
         contact.resourceName || ''
       ];
     });
@@ -502,7 +620,7 @@ var HiEnergyMcpExport = (function () {
     return [
       {
         name: 'Google Contacts',
-        headers: ['Name', 'Email', 'Organization', 'Phone', 'Resource'],
+        headers: SHEET_SPECS_.contacts.headers,
         rows: googleContactRows_(contacts.slice(0, HiEnergyConfig.sheetContactLimit))
       }
     ];
