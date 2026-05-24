@@ -102,15 +102,16 @@ describe('HiEnergyMcpExport', function () {
     });
 
     expect(tables[0].headers[0]).toBe('Advertiser Hi Energy link');
-    expect(tables[0].headers[1]).toBe('Advertiser company');
-    expect(tables[0].headers[2]).toBe('Name');
-    expect(tables[0].headers[3]).toBe('Given name');
-    expect(tables[0].headers[8]).toBe('LinkedIn profile');
+    expect(tables[0].headers[1]).toBe('Status');
+    expect(tables[0].headers[2]).toBe('Advertiser company');
+    expect(tables[0].headers[3]).toBe('Name');
+    expect(tables[0].headers[4]).toBe('Given name');
+    expect(tables[0].headers[9]).toBe('LinkedIn profile');
     expect(tables[0].rows[0][0]).toBe('=HYPERLINK("https://app.hienergy.ai/a/nike","Nike")');
-    expect(tables[0].rows[0][1]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/nike","Nike")');
-    expect(tables[0].rows[0][2]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/contacts/c1","Alex Smith")');
-    expect(tables[0].rows[0][3]).toBe('Alex');
-    expect(tables[0].rows[0][8]).toBe('=HYPERLINK("https://www.linkedin.com/in/alexsmith","https://www.linkedin.com/in/alexsmith")');
+    expect(tables[0].rows[0][2]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/nike","Nike")');
+    expect(tables[0].rows[0][3]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/contacts/c1","Alex Smith")');
+    expect(tables[0].rows[0][4]).toBe('Alex');
+    expect(tables[0].rows[0][9]).toBe('=HYPERLINK("https://www.linkedin.com/in/alexsmith","https://www.linkedin.com/in/alexsmith")');
   });
 
   it('fills advertiser company from export query when contact rows omit it', function () {
@@ -131,7 +132,7 @@ describe('HiEnergyMcpExport', function () {
       { advertiserCompanyFallback: 'Nike' }
     );
 
-    expect(tables[0].rows[0][1]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/nike","Nike")');
+    expect(tables[0].rows[0][2]).toBe('=HYPERLINK("https://app.hienergy.ai/admin/advertisers/nike","Nike")');
   });
 });
 

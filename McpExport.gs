@@ -358,6 +358,15 @@ var HiEnergyMcpExport = (function () {
     return '';
   }
 
+  function contactStatus_(attrs) {
+    return first_(
+      attrs.status,
+      attrs.email_status,
+      attrs.email_validation_status,
+      attrs.verification_status
+    );
+  }
+
   function contactRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
@@ -368,6 +377,7 @@ var HiEnergyMcpExport = (function () {
       var linkedin = linkedinProfile_(a);
       return [
         hyperlink_(advertiserHiEnergyUrl_(advSlug), company || advSlug),
+        contactStatus_(a),
         advertiserCell_(advSlug, company || advSlug),
         id ? hyperlink_(contactAdminUrl_(id), fullName) : fullName,
         contactGivenName_(a),
@@ -442,6 +452,7 @@ var HiEnergyMcpExport = (function () {
       title: 'Contacts',
       headers: [
         'Advertiser Hi Energy link',
+        'Status',
         'Advertiser company',
         'Name',
         'Given name',
@@ -529,15 +540,16 @@ var HiEnergyMcpExport = (function () {
     }
     var lower = company.toLowerCase();
     tables.forEach(function (table) {
-      if (!table.rows || table.headers[1] !== 'Advertiser company') {
+      var idx = table.headers ? table.headers.indexOf('Advertiser company') : -1;
+      if (!table.rows || idx === -1) {
         return;
       }
       table.rows.forEach(function (row) {
-        var cell = row[1];
+        var cell = row[idx];
         var label = labelFromCell_(cell);
         if (!label || label.toLowerCase() === lower || label === '') {
           var url = urlFromHyperlinkCell_(cell);
-          row[1] = url ? hyperlink_(url, company) : company;
+          row[idx] = url ? hyperlink_(url, company) : company;
         }
       });
     });
@@ -789,6 +801,7 @@ var HiEnergyMcpExport = (function () {
   function googleContactRows_(contacts) {
     return contacts.map(function (contact) {
       return [
+        '',
         '',
         contact.organization || '',
         contact.name || '',

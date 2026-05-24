@@ -624,8 +624,16 @@ var HiEnergyCards = (function () {
               (attrs.advertiser.attributes.display_name || attrs.advertiser.attributes.name)))) ||
         attrs.organization ||
         '';
+      var contactStatus = humanize_(
+        attrs.status ||
+          attrs.email_status ||
+          attrs.email_validation_status ||
+          attrs.verification_status ||
+          ''
+      );
       return [
         advertiserCompany,
+        contactStatus,
         given ? 'Given: ' + given : '',
         attrs.email,
         attrs.job_title || attrs.title,
