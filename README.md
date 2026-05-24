@@ -1,6 +1,8 @@
 # Hi Energy AI — Google Workspace Add-on
 
-Official Google Workspace sidebar add-on for [Hi Energy AI](https://app.hienergy.ai). Search advertisers, deals, and transactions; browse MCP tools; and enrich Gmail with Google Contacts and message context — all without leaving Gmail, Drive, Docs, Sheets, Slides, or Calendar.
+Official Google Workspace sidebar add-on for [Hi Energy AI](https://app.hienergy.ai). Search advertisers, deals, and transactions; browse MCP tools; export results to Google Sheets; draft Gmail messages; and enrich Gmail with Google Contacts and message context — all without leaving Gmail, Drive, Docs, Sheets, Slides, or Calendar.
+
+**Contributors:** [Run locally](#run-locally) · [Submitting changes](#submitting-changes) (merge to `main` deploys production) · [Marketplace submission](./marketplace/SUBMIT.md)
 
 ## How it works
 
@@ -25,10 +27,13 @@ The add-on runs as a **Google Apps Script** project using **CardService** (nativ
 │  Auth0.gs     → Auth0 OAuth sign-in                         │
 │  GmailClient.gs    → Gmail threads and search               │
 │  ContactsClient.gs → Google People / Contacts lookup        │
+│  McpExport.gs      → MCP results → Google Sheets            │
+│  SheetsClient.gs   → Spreadsheet create/write helpers       │
+│  GmailDrafts.gs    → Gmail draft compose                    │
 └───────────┬─────────────────────────────┬───────────────────┘
             │                             │
             ▼                             ▼
-  POST https://app.hienergy.ai/mcp   Google Gmail + People APIs
+  POST https://app.hienergy.ai/mcp   Google Gmail, People, Sheets
   (Auth0 Bearer or X-Api-Key)        (Google OAuth scopes)
 ```
 
@@ -105,6 +110,8 @@ The add-on manifest (`appsscript.json`) uses the same name, logo, and colors for
 
 - Search advertisers, deals, and transactions via MCP universal search
 - Browse and run MCP tools (reports, contacts, user search, and more)
+- **Create Sheet** — export MCP search results (advertisers, deals, transactions) to a new Google Spreadsheet
+- **Draft Email** — compose a Gmail draft from the sidebar (reply to open message when in Gmail)
 - Gmail contextual sidebar: sender info, contact match, recent domain messages
 - Google Contacts lookup and search
 - Gmail thread view and message search
@@ -121,6 +128,9 @@ The add-on manifest (`appsscript.json`) uses the same name, logo, and colors for
 | `Cards.gs` | CardService UI (sidebar cards) |
 | `McpClient.gs` | MCP JSON-RPC client (`initialize`, `tools/call`, `tools/list`) |
 | `ApiClient.gs` | Hi Energy AI data layer (MCP tools + REST fallback) |
+| `McpExport.gs` | Export MCP rows to Sheets (advertisers, deals, transactions) |
+| `SheetsClient.gs` | Spreadsheet creation and tab writes |
+| `GmailDrafts.gs` | Gmail draft creation from sidebar |
 | `Auth0.gs` | Auth0 OAuth via Google OAuth2 library |
 | `GmailClient.gs` | Gmail message and thread helpers |
 | `ContactsClient.gs` | Google People / Contacts lookup |
@@ -250,26 +260,41 @@ Share the test deployment link with teammates for internal QA. Test deployments 
 
 ### 7. Production deployment
 
-For a stable, versioned deployment inside your organization:
+**Hi Energy team:** production updates automatically when you [merge to `main`](#submitting-changes). You do not need to run `clasp deploy` locally for the shared deployment.
+
+For a new Apps Script project or manual deploy:
 
 1. In Apps Script → **Deploy** → **New deployment**
 2. Click the gear icon → select type **Add-on**
 3. Fill in description (e.g. `Hi Energy AI v1.0.0`)
 4. Click **Deploy** and copy the deployment ID
 
-To update production later:
+To update an existing production deployment manually:
 
 ```bash
 npm run validate
 clasp push
-clasp deploy --description "Hi Energy AI v1.0.1"
+clasp deploy -i YOUR_DEPLOYMENT_ID --description "Hi Energy AI v1.0.1"
 ```
 
-Or create a new deployment version in the Apps Script UI under **Deploy** → **Manage deployments** → **Edit** → **Version** → **New version**.
+Or in the Apps Script UI: **Deploy** → **Manage deployments** → **Edit** → **Version** → **New version**.
+
+| Resource | Value |
+|----------|--------|
+| Apps Script ID | `1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4` |
+| Editor | [Open in Apps Script](https://script.google.com/d/1CL-AxpQya8TGFWbDM2TnS4iZFBj3-JspvinkGrI3kgXUHXnpD4drYKN4/edit) |
+| GCP project | `hi-energy-workspace-app` (number `135719878981`) |
+| Production deployment ID | `AKfycbwbYxV5rGlnTn1BflnDpXcrDEfdqzmDtXSE0HlfQBmzyhGVbcsQm_MlHL3h6Y8gBAkc` |
 
 ### 8. Google Workspace Marketplace (optional)
 
-Publishing assets and copy live in [`marketplace/`](./marketplace/). Start with [`marketplace/checklist.md`](./marketplace/checklist.md).
+Publishing assets and copy live in [`marketplace/`](./marketplace/).
+
+| Guide | Purpose |
+|-------|---------|
+| [`marketplace/SUBMIT.md`](./marketplace/SUBMIT.md) | **Step-by-step console submission** (OAuth → App Configuration → Store Listing → Submit for review) |
+| [`marketplace/checklist.md`](./marketplace/checklist.md) | Full publishing checklist |
+| [`marketplace/listing-copy.md`](./marketplace/listing-copy.md) | Store listing text to paste |
 
 | Deliverable | Location |
 |-------------|----------|
@@ -282,13 +307,20 @@ Publishing assets and copy live in [`marketplace/`](./marketplace/). Start with 
 | Host-ready HTML | `marketplace/hosted/*.html` |
 | SDK field template | `marketplace/listing-config.json` |
 
-**Steps (summary):**
+**What CI can and cannot do**
 
-1. Complete a production deployment (step 7)
-2. Link GCP project **`hi-energy-workspace-app`** to Apps Script ([dashboard](https://console.cloud.google.com/home/dashboard?project=hi-energy-workspace-app) → copy project number)
-3. Run `npm run create:app` to open Marketplace SDK + OAuth setup for that project
+| Automated | Manual (console only) |
+|-----------|------------------------|
+| `clasp push` + update production deployment on merge to `main` | Marketplace SDK App Configuration |
+| Validate listing assets (`npm run check:marketplace`) | Store Listing fields and screenshots upload |
+| CLI helpers (`npm run marketplace:open`, `marketplace:phase4`) | **Submit for review** |
 
-Screenshot mockups are included for draft listings; replace with real Gmail captures before final public review when possible.
+Google exposes `appsmarket.googleapis.com` (licensing) and `appsmarket-component.googleapis.com` (SDK console backend) on GCP, but there is **no public REST API** for listing publish or review submission. Use [`marketplace/SUBMIT.md`](./marketplace/SUBMIT.md) and `npm run marketplace:open`.
+
+```bash
+npm run marketplace:open        # open all console tabs + SUBMIT.md steps
+npm run marketplace:phase4      # enable APIs, status, paste values for SDK forms
+```
 
 Marketplace review can take several weeks. Internal/test deployments do not require marketplace listing.
 
@@ -305,18 +337,16 @@ Marketplace review can take several weeks. Internal/test deployments do not requ
 
 ### Updating an existing deployment
 
-```bash
-git pull
-npm run validate
-clasp push
-```
+| Audience | Workflow |
+|----------|----------|
+| **Hi Energy contributors** | Open PR → merge to `main` → [CI deploys production](#submitting-changes) |
+| **Local / test only** | `git pull` → `npm run validate` → `npm run deploy:push` → test deployment in Gmail |
+| **Manual production** | `clasp push` then `clasp deploy -i DEPLOYMENT_ID` |
 
-Then in Apps Script:
+- **Test deployments** — pick up `clasp push` automatically on next open
+- **Production (CI)** — updates the fixed deployment ID in GitHub secrets
 
-- **Test deployments** — pick up changes automatically on next open
-- **Production** — create a new deployment version or run `clasp deploy`
-
-If you change OAuth scopes in `appsscript.json`, users must re-install or re-authorize the add-on.
+If you change OAuth scopes in `appsscript.json`, users must re-authorize the add-on; update OAuth consent and Marketplace SDK scopes per [`marketplace/SUBMIT.md`](./marketplace/SUBMIT.md).
 
 ## One-time admin setup
 
@@ -374,12 +404,14 @@ The manifest requests these Google scopes (users re-authorize after scope change
 | `gmail.addons.current.message.readonly` | Read the open Gmail message |
 | `gmail.addons.execute` | Run Gmail add-on triggers |
 | `gmail.readonly` | Search and read Gmail threads |
+| `gmail.compose` | Create Gmail drafts from sidebar |
 | `contacts.readonly` | Search Google Contacts |
+| `spreadsheets` | Create/write Sheets for MCP export |
 | `script.external_request` | Call Hi Energy AI MCP server |
 | `script.locale` | Host app locale (`useLocaleFromApp` in manifest) |
 | `userinfo.email` | User identity |
 
-`gmail.readonly` is a sensitive scope — Google Workspace Marketplace publication may require additional verification.
+`gmail.readonly`, `gmail.compose`, and `spreadsheets` are sensitive scopes — public Marketplace listings may require [OAuth verification](./marketplace/oauth-verification.md) and a demo video.
 
 ## User flow
 
@@ -388,6 +420,7 @@ The manifest requests these Google scopes (users re-authorize after scope change
 3. **Gmail**: opening an email shows sender context, contacts, and recent messages automatically
 4. **Hi Energy AI data**: click **Sign in with Hi Energy AI** → complete Auth0 login
 5. Search, browse MCP tools, or drill into advertisers, deals, and transactions
+6. **Create Sheet** or **Draft Email** from universal actions (Hi Energy AI sign-in required for sheet export)
 
 ## Run locally
 
@@ -452,16 +485,18 @@ npm run deploy:open
 
 ### Marketplace tooling (local only)
 
-Google has no API to publish Marketplace listings from CI. Use these locally when preparing or updating a listing:
+Listing submission is **console-only** — see [`marketplace/SUBMIT.md`](./marketplace/SUBMIT.md). Helpers:
 
 ```bash
-npm run marketplace:phase4:status   # API/status report
-npm run marketplace:phase4          # enable APIs + open console tabs + paste values
-npm run marketplace:submit          # browser automation (sign in to Google Cloud when prompted)
+npm run marketplace:open            # open console tabs (recommended starting point)
+npm run marketplace:phase4:status   # GCP/API status report
+npm run marketplace:phase4          # enable APIs + open tabs + paste SDK values
+npm run marketplace:phase4:paste    # print values for App Configuration / Store Listing
+npm run marketplace:submit          # Playwright automation (may require manual Google sign-in)
 npm run check:marketplace           # validate listing assets (full image checks on macOS)
 ```
 
-See [`marketplace/checklist.md`](./marketplace/checklist.md) for the full publishing checklist.
+CI runs `check:marketplace` on every PR and `main` push (file checks; image dimensions on macOS only).
 
 ### Spec coverage
 
@@ -470,6 +505,8 @@ See [`marketplace/checklist.md`](./marketplace/checklist.md) for the full publis
 | `test/config.spec.js` | Branding and MCP defaults |
 | `test/api-client.spec.js` | `universal_search`, auth gates, REST fallback |
 | `test/mcp-client.spec.js` | MCP JSON-RPC client behavior |
+| `test/mcp-export.spec.js` | MCP → Sheets row mapping and export |
+| `test/advertiser-sheet.spec.js` | Advertiser sheet column layout |
 | `test/gmail-client.spec.js` | Gmail context and domain search |
 | `test/contacts-client.spec.js` | People API contact lookup |
 | `test/main.spec.js` | MCP tool argument mapping |
@@ -529,17 +566,17 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on every PR to `main`:
 
 | Job | PR | Merge to `main` |
 |-----|----|-----------------|
-| **validate** — lint, 37 specs, manifest, marketplace files | ✅ | ✅ |
-| **deploy** — `clasp push` + update production deployment | ❌ | ✅ |
+| **Validate** — lint, 37 specs, manifest, marketplace files | ✅ | ✅ |
+| **Deploy to Apps Script (production)** — `clasp push` + update production deployment | ❌ | ✅ |
 
-Check the **Actions** tab on your PR — all validate steps must pass before merge.
+Check the [**Actions**](https://github.com/HiEnergyAgency/hienergy-workspace-addon/actions/workflows/ci.yml) tab on your PR — all validate steps must pass before merge.
 
 ### 5. Merge to `main`
 
 After review and green CI:
 
 1. **Squash merge** (or merge commit) into `main`
-2. CI deploy job runs automatically:
+2. **Deploy to Apps Script (production)** runs automatically on the `main` push:
    - `clasp push --force`
    - Updates production deployment `AKfycbwbYxV5…`
    - Verifies deployment ID (`scripts/verify-deployment.mjs`)
@@ -561,6 +598,14 @@ After review and green CI:
 To redeploy current `main` without a new commit: **Actions → CI → Run workflow** → enable **Skip validate and deploy current main**.
 
 ## CI setup and Marketplace
+
+Workflow: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
+
+| Trigger | Validate | Deploy production |
+|---------|----------|-------------------|
+| PR to `main` | ✅ | ❌ |
+| Push / merge to `main` | ✅ | ✅ |
+| Manual **Run workflow** (deploy only) | optional skip | ✅ |
 
 The [Submitting changes](#submitting-changes) section describes the PR → merge → deploy flow. This section covers one-time GitHub secrets and first-time Marketplace approval.
 
@@ -597,15 +642,16 @@ Refresh `CLASPRC_JSON` if deploy fails with an auth error (re-run `clasp login`,
 
 ### First-time Marketplace approval
 
-After the listing is approved, **merges to `main` update live add-on code** via the linked production deployment — no listing resubmit per code change.
+Follow [`marketplace/SUBMIT.md`](./marketplace/SUBMIT.md) end to end. Quick start:
 
 ```bash
-npm run marketplace:open              # open console tabs + follow marketplace/SUBMIT.md
-npm run marketplace:submit          # browser: App Configuration + Store Listing
-npm run marketplace:phase4            # CLI status + open console tabs
+npm run marketplace:open      # opens Apps Script, OAuth consent, Marketplace SDK, SUBMIT.md steps
+npm run marketplace:phase4    # CLI status + paste values for SDK forms
 ```
 
-Or **Actions → Marketplace submit** for the checklist output.
+After the listing is approved, **merges to `main` update live add-on code** via the linked production deployment — no listing resubmit per code change.
+
+**Actions → Marketplace submit** (`.github/workflows/marketplace-submit.yml`) prints the checklist in the workflow log; it does not publish the listing.
 
 **Not in GitHub:** Auth0 credentials (`AUTH0_*`) live in Apps Script **Project Settings → Script properties** only. Set once in the Apps Script editor:
 
@@ -649,6 +695,11 @@ curl -X POST https://app.hienergy.ai/mcp \
 | `Invalid container file type` | Use `--type standalone`, not `workspace-add-on` (removed in clasp 3.x) |
 | `User has not enabled the Apps Script API` | Enable at [script.google.com/home/usersettings](https://script.google.com/home/usersettings), wait 1–2 min, retry |
 | `Project settings not found` | Run `clasp create` first so `.clasp.json` gets a `scriptId` |
+| `You do not have permission to call Locale` / locale errors | `script.locale` scope required — merge latest `main`, re-authorize add-on |
+| Apps Script editor 404 | Verify script ID: `…GrI3kg…` not `…Grl3kg…` (capital **I** in `GrI3kg`) |
+| `getMcpUrl is not a function` | Pull latest `main` (ApiClient load-order fix) and redeploy |
+| Deploy failed in CI | Refresh `CLASPRC_JSON` (`clasp login` → `npm run setup:github-secrets`) |
+| Marketplace listing unchanged after merge | Expected — CI updates Apps Script only; edit listing in Marketplace SDK console |
 
 ## Security
 

@@ -1,3 +1,4 @@
+# Merge/push to main → validate → deploy production Apps Script (clasp push + clasp deploy)
 name: CI
 
 on:
@@ -18,6 +19,7 @@ concurrency:
 
 jobs:
   validate:
+    name: Validate
     if: github.event_name != 'workflow_dispatch' || inputs.deploy_only != true
     runs-on: ubuntu-latest
     steps:
@@ -44,7 +46,9 @@ jobs:
         run: npm run check:marketplace
 
   deploy:
+    name: Deploy to Apps Script (production)
     needs: validate
+    # Runs only on push/merge to main (not on pull_request). PRs validate only.
     if: |
       always() &&
       (needs.validate.result == 'success' || needs.validate.result == 'skipped') &&
