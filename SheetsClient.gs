@@ -641,23 +641,51 @@ var HiEnergySheets = (function () {
     return slugs;
   }
 
-  function appendContactsForAdvertisers_(batch, deadline, companyFallback, targetSpreadsheetId) {
-    if (!HiEnergyApi || typeof HiEnergyApi.advertiserContacts !== 'function') {
-      return { rowCount: 0 };
-    }
+  function appendChildEntitiesForAdvertisers_(exportType, batch, deadline, companyFallback, targetSpreadsheetId) {
     var slugs = advertiserSlugsFromBatch_(batch);
     if (!slugs.length) {
       return { rowCount: 0 };
     }
+    var perAdvertiserLimit = HiEnergyConfig.exportPageSize || 100;
+    var fetch;
+    if (exportType === 'contacts') {
+      if (!HiEnergyApi || typeof HiEnergyApi.advertiserContacts !== 'function') {
+        return { rowCount: 0 };
+      }
+      fetch = function (slug) {
+        return HiEnergyApi.advertiserContacts(slug, 1, perAdvertiserLimit);
+      };
+    } else if (exportType === 'transactions') {
+      if (!HiEnergyApi || typeof HiEnergyApi.transactions !== 'function') {
+        return { rowCount: 0 };
+      }
+      fetch = function (slug) {
+        return HiEnergyApi.transactions({
+          advertiserId: slug,
+          days: 30,
+          limit: perAdvertiserLimit,
+          page: 1
+        });
+      };
+    } else if (exportType === 'deals') {
+      if (!HiEnergyApi || typeof HiEnergyApi.deals !== 'function') {
+        return { rowCount: 0 };
+      }
+      fetch = function (slug) {
+        return HiEnergyApi.deals(slug, perAdvertiserLimit, 1);
+      };
+    } else {
+      return { rowCount: 0 };
+    }
+
     var collected = [];
     for (var i = 0; i < slugs.length; i += 1) {
       if (deadline && Date.now() > deadline) {
         break;
       }
-      var slug = slugs[i];
       var resp;
       try {
-        resp = HiEnergyApi.advertiserContacts(slug, 1, HiEnergyConfig.exportPageSize || 100);
+        resp = fetch(slugs[i]);
       } catch (err) {
         continue;
       }
@@ -673,8 +701,11 @@ var HiEnergySheets = (function () {
     if (!collected.length) {
       return { rowCount: 0 };
     }
+    var toolName = exportType === 'contacts'
+      ? 'get_advertiser_contacts'
+      : toolNameForExport_(exportType);
     var tables = HiEnergyMcpExport.tablesFromMcpResult(
-      'get_advertiser_contacts',
+      toolName,
       { data: collected },
       { advertiserCompanyFallback: companyFallback || '' }
     );
@@ -694,6 +725,10 @@ var HiEnergySheets = (function () {
       return { rowCount: written.rowCount || 0 };
     }
     return { rowCount: 0 };
+  }
+
+  function appendContactsForAdvertisers_(batch, deadline, companyFallback, targetSpreadsheetId) {
+    return appendChildEntitiesForAdvertisers_('contacts', batch, deadline, companyFallback, targetSpreadsheetId);
   }
 
   function exportMoreAll_(session, fetchAll) {
@@ -920,6 +955,19 @@ var HiEnergySheets = (function () {
         advertiserDeadline,
         sharedTarget
       );
+      if (!dealsAddition.rowCount) {
+        var perAdvertiserDeals = appendChildEntitiesForAdvertisers_(
+          'deals',
+          exported.advertiserBatch || [],
+          advertiserDeadline,
+          normalized,
+          sharedTarget
+        );
+        dealsAddition = {
+          rowCount: perAdvertiserDeals.rowCount || 0,
+          exhausted: true
+        };
+      }
       if (dealsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
         exported.rowCount += dealsAddition.rowCount;
@@ -935,6 +983,19 @@ var HiEnergySheets = (function () {
         advertiserDeadline,
         sharedTarget
       );
+      if (!transactionsAddition.rowCount) {
+        var perAdvertiserTxns = appendChildEntitiesForAdvertisers_(
+          'transactions',
+          exported.advertiserBatch || [],
+          advertiserDeadline,
+          normalized,
+          sharedTarget
+        );
+        transactionsAddition = {
+          rowCount: perAdvertiserTxns.rowCount || 0,
+          exhausted: true
+        };
+      }
       if (transactionsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
         exported.rowCount += transactionsAddition.rowCount;
