@@ -148,6 +148,34 @@ var HiEnergyMcp = (function () {
     };
   }
 
+  function fetchWithRetry_(url, fetchOptions, maxAttempts) {
+    maxAttempts = maxAttempts || 3;
+    var lastError = null;
+    for (var attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        var response = UrlFetchApp.fetch(url, fetchOptions);
+        var code = response.getResponseCode();
+        if (code >= 500 || code === 429) {
+          if (attempt < maxAttempts) {
+            Utilities.sleep(Math.min(2000, 250 * Math.pow(2, attempt - 1)));
+            continue;
+          }
+        }
+        return response;
+      } catch (err) {
+        lastError = err;
+        if (attempt < maxAttempts) {
+          Utilities.sleep(Math.min(2000, 250 * Math.pow(2, attempt - 1)));
+          continue;
+        }
+      }
+    }
+    if (lastError) {
+      throw lastError;
+    }
+    return null;
+  }
+
   function rpc_(method, params) {
     var headers = authHeaders_();
     if (!headers) {
@@ -161,7 +189,7 @@ var HiEnergyMcp = (function () {
       params: params || {}
     };
 
-    var response = UrlFetchApp.fetch(mcpUrl_(), {
+    var fetchOptions = {
       method: 'post',
       contentType: 'application/json',
       headers: Object.assign(
@@ -173,7 +201,20 @@ var HiEnergyMcp = (function () {
       ),
       payload: JSON.stringify(payload),
       muteHttpExceptions: true
-    });
+    };
+
+    var response;
+    try {
+      response = fetchWithRetry_(mcpUrl_(), fetchOptions, 3);
+    } catch (err) {
+      return {
+        ok: false,
+        code: 0,
+        error: 'NETWORK_ERROR',
+        message: 'Network error contacting MCP server: ' + err,
+        body: null
+      };
+    }
 
     var httpCode = response.getResponseCode();
     var text = response.getContentText() || '';

@@ -42,6 +42,7 @@ var HiEnergyConfig = (function () {
     sheetRowLimit: 500,
     exportPageSize: 100,
     exportMaxPages: 50,
+    exportTimeBudgetMs: 22000,
     sheetTitlePrefix: 'Hi Energy AI',
     advertiserSearchLimit: 500,
     sheetContactLimit: 500,

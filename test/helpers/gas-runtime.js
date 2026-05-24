@@ -42,7 +42,8 @@ function createGasContext(overrides) {
     Utilities: {
       formatDate: function () {
         return 'Jan 1, 2026';
-      }
+      },
+      sleep: function () {}
     },
     Session: {
       getScriptTimeZone: function () {

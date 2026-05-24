@@ -259,16 +259,27 @@ var HiEnergySheets = (function () {
     if (maxPages === undefined || maxPages === null) {
       maxPages = unlimited ? 1000 : HiEnergyConfig.exportMaxPages || 50;
     }
+    var startTime = Date.now();
+    var timeBudgetMs =
+      options.timeBudgetMs !== undefined
+        ? options.timeBudgetMs
+        : HiEnergyConfig.exportTimeBudgetMs || 22000;
+    var deadline = options.deadline || (timeBudgetMs > 0 ? startTime + timeBudgetMs : 0);
     var startPage = options.startPage || 1;
     var seen = options.seen || rebuildSeen_(options.seenKeys);
     var collected = [];
     var batchRows = [];
     var totalFromServer = null;
     var exhausted = false;
+    var timedOut = false;
     var lastPageFetched = startPage - 1;
 
     for (var page = startPage; page < startPage + maxPages; page += 1) {
       if (!unlimited && collected.length >= maxRows) {
+        break;
+      }
+      if (deadline && Date.now() > deadline) {
+        timedOut = true;
         break;
       }
 
@@ -336,6 +347,7 @@ var HiEnergySheets = (function () {
           fetched: batchRows.length,
           cumulative: collected.length,
           hasMore: hasMore,
+          timedOut: timedOut,
           truncatedAt: unlimited ? null : HiEnergyConfig.sheetRowLimit
         }
       },
@@ -344,6 +356,7 @@ var HiEnergySheets = (function () {
         seenKeys: seenKeyList,
         exhausted: exhausted,
         hasMore: hasMore,
+        timedOut: timedOut,
         totalCollected: collected.length
       }
     };
@@ -448,7 +461,9 @@ var HiEnergySheets = (function () {
       startPage: options.startPage || 1,
       seenKeys: options.seenKeys || null,
       seen: options.seen || null,
-      maxPages: options.maxPages
+      maxPages: options.maxPages,
+      deadline: options.deadline,
+      timeBudgetMs: options.timeBudgetMs
     };
 
     var result = paginateRows_(fetchPage, paginateOptions);
@@ -462,6 +477,26 @@ var HiEnergySheets = (function () {
         ok: false,
         error: 'NO_DATA',
         message: 'No more rows to export.'
+      };
+    }
+    if (!batch.length) {
+      saveExportSession_(
+        exportType,
+        params,
+        result.pagination,
+        ''
+      );
+      return {
+        ok: true,
+        rowCount: 0,
+        sheetCount: 0,
+        rowsThisBatch: 0,
+        hasMore: true,
+        exhausted: false,
+        nextPage: result.pagination.nextPage,
+        seenKeys: result.pagination.seenKeys,
+        usedActiveSpreadsheet: !!activeSpreadsheet_(),
+        url: activeSpreadsheet_() ? activeSpreadsheet_().getUrl() : ''
       };
     }
 
@@ -505,10 +540,16 @@ var HiEnergySheets = (function () {
     var totalAppended = 0;
     var lastExport = null;
     var anyHasMore = false;
+    var sharedBudget = HiEnergyConfig.exportTimeBudgetMs || 22000;
+    var sharedDeadline = Date.now() + sharedBudget;
 
     typeList.forEach(function (type, index) {
       var state = types[type] || { nextPage: 1, seenKeys: [], exhausted: true };
       if (state.exhausted) {
+        return;
+      }
+      if (Date.now() >= sharedDeadline) {
+        anyHasMore = true;
         return;
       }
 
@@ -523,7 +564,8 @@ var HiEnergySheets = (function () {
         seenKeys: state.seenKeys || null,
         skipSession: true,
         fetchAll: !!fetchAll,
-        maxPages: fetchAll ? null : 1
+        maxPages: fetchAll ? null : 1,
+        deadline: sharedDeadline
       });
 
       if (!part.ok) {
@@ -828,11 +870,19 @@ var HiEnergySheets = (function () {
       var anyHasMore = false;
       var spreadsheetId = '';
       var allTypes = ['advertisers', 'deals', 'transactions', 'contacts'];
+      var sharedBudget = HiEnergyConfig.exportTimeBudgetMs || 22000;
+      var sharedDeadline = Date.now() + sharedBudget;
       allTypes.forEach(function (type, index) {
+        if (Date.now() >= sharedDeadline) {
+          anyHasMore = true;
+          types[type] = types[type] || { nextPage: 1, seenKeys: [], exhausted: false };
+          return;
+        }
         var partParams = { query: query };
         var part = exportPaginated_(type, partParams, {
           skipSession: true,
-          append: index > 0
+          append: index > 0,
+          deadline: sharedDeadline
         });
         if (part.ok) {
           lastExport = part;
