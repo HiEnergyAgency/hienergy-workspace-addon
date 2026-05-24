@@ -18,6 +18,7 @@
     "check:marketplace": "node scripts/check-marketplace-assets.js",
     "create:app": "bash scripts/create-marketplace-app.sh",
     "submit:marketplace": "bash scripts/create-marketplace-app.sh",
+    "marketplace:open": "bash scripts/open-marketplace-flow.sh",
     "marketplace:phase4": "node scripts/marketplace-cli.mjs setup --open",
     "marketplace:submit": "node scripts/submit-marketplace.mjs --submit",
     "marketplace:submit:draft": "node scripts/submit-marketplace.mjs",

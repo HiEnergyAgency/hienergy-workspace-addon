@@ -20,13 +20,11 @@ echo ""
 
 open "https://console.cloud.google.com/home/dashboard?project=${GCP_PROJECT}"
 sleep 1
-open "https://script.google.com/home/projects/${SCRIPT_ID}/settings"
-sleep 1
-open "https://script.google.com/home/projects/${SCRIPT_ID}/deployments"
-sleep 1
-open "https://console.cloud.google.com/flows/enableapi?apiid=appsmarket-component.googleapis.com&project=${GCP_PROJECT}"
+open "https://script.google.com/d/${SCRIPT_ID}/edit"
 sleep 1
 open "https://console.cloud.google.com/apis/api/appsmarket-component.googleapis.com/googleapps_sdk?project=${GCP_PROJECT}"
+sleep 1
+open "https://console.cloud.google.com/apis/api/appsmarket-component.googleapis.com/googleapps_sdk_publish?project=${GCP_PROJECT}"
 sleep 1
 open "https://console.cloud.google.com/apis/credentials/consent?project=${GCP_PROJECT}"
 sleep 1
@@ -43,6 +41,7 @@ cat <<EOF
 5) OAuth consent → app name: Hi Energy AI Workspace Add-on
 6) Store listing → copy from marketplace/listing-copy.md
 
+Step-by-step submit guide: marketplace/SUBMIT.md
 Full checklist: marketplace/checklist.md
 
 EOF
