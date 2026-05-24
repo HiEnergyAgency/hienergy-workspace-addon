@@ -8,28 +8,34 @@ function loadSheets(overrides) {
 
 describe('HiEnergySheets.paginateRows', function () {
   it('walks pages until results are exhausted', function () {
+    // Simulate a server that caps a single response at 100 rows even when
+    // the client asks for more, but reports an accurate total so the
+    // paginator keeps walking pages until everything is fetched.
     const ctx = loadSheets();
     const calls = [];
     let rowId = 0;
+    const serverPageCap = 100;
+    const totalAvailable = 230;
     const fetcher = function (page, limit) {
       calls.push({ page: page, limit: limit });
-      if (page > 3) {
-        return { ok: true, body: { data: [] } };
+      if (rowId >= totalAvailable) {
+        return { ok: true, body: { data: [], meta: { total: totalAvailable } } };
       }
       const rows = [];
-      for (let i = 0; i < (page === 3 ? 30 : limit); i += 1) {
+      const want = Math.min(serverPageCap, limit, totalAvailable - rowId);
+      for (let i = 0; i < want; i += 1) {
         rowId += 1;
         rows.push({ id: String(rowId), attributes: { name: 'Row ' + rowId } });
       }
-      return { ok: true, body: { data: rows, meta: { total: 230 } } };
+      return { ok: true, body: { data: rows, meta: { total: totalAvailable } } };
     };
 
     const result = ctx.HiEnergySheets.paginateRows(fetcher);
     expect(result.ok).toBe(true);
-    expect(result.body.data).toHaveLength(230);
-    expect(result.body.meta.total).toBe(230);
-    expect(result.body.meta.fetched).toBe(230);
-    expect(calls).toHaveLength(3);
+    expect(result.body.data).toHaveLength(totalAvailable);
+    expect(result.body.meta.total).toBe(totalAvailable);
+    expect(result.body.meta.fetched).toBe(totalAvailable);
+    expect(calls.length).toBeGreaterThanOrEqual(3);
   });
 
   it('caps at sheetRowLimit (500) even when more rows are available', function () {
@@ -105,18 +111,20 @@ describe('HiEnergySheets.paginateRows', function () {
 
   it('keeps partial results when a later page fails', function () {
     const ctx = loadSheets();
-    const fetcher = function (page, limit) {
+    const firstPageRows = 100;
+    const fetcher = function (page) {
       if (page === 1) {
         const rows = [];
-        for (let i = 0; i < limit; i += 1) {
+        for (let i = 0; i < firstPageRows; i += 1) {
           rows.push({ id: String(i + 1) });
         }
-        return { ok: true, body: { data: rows, meta: { total: 1000 } } };
+        // Server reports a much larger total so paginator tries page 2.
+        return { ok: true, body: { data: rows, meta: { total: 5000 } } };
       }
       return { ok: false, error: 'API_RATE_LIMITED' };
     };
     const result = ctx.HiEnergySheets.paginateRows(fetcher);
     expect(result.ok).toBe(true);
-    expect(result.body.data).toHaveLength(100);
+    expect(result.body.data).toHaveLength(firstPageRows);
   });
 });

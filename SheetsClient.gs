@@ -238,7 +238,16 @@ var HiEnergySheets = (function () {
         }
       }
 
-      if (addedThisPage === 0 || rows.length < pageLimit) {
+      if (addedThisPage === 0) {
+        break;
+      }
+
+      // If the server respects pagination and reports a total greater than
+      // what we have, keep walking pages even if it returned fewer rows than
+      // the requested page size (some MCP tools cap a single response).
+      var keepGoing =
+        typeof totalFromServer === 'number' && collected.length < totalFromServer;
+      if (!keepGoing && rows.length < pageLimit) {
         break;
       }
     }
