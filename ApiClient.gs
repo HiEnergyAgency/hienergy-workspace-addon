@@ -258,6 +258,21 @@ var HiEnergyApi = (function () {
     return transactions_(query, HiEnergyConfig.perTypeLimit);
   }
 
+  function getMcpUrl_() {
+    if (typeof HiEnergyMcp !== 'undefined' && HiEnergyMcp.getMcpUrl) {
+      return HiEnergyMcp.getMcpUrl();
+    }
+    var userUrl = userProps_().getProperty(HiEnergyConfig.propMcpUrl);
+    if (userUrl) {
+      return String(userUrl).replace(/\/$/, '');
+    }
+    var scriptUrl = PropertiesService.getScriptProperties().getProperty(HiEnergyConfig.propMcpUrl);
+    if (scriptUrl) {
+      return String(scriptUrl).replace(/\/$/, '');
+    }
+    return HiEnergyConfig.defaultMcpUrl;
+  }
+
   function listMcpTools_() {
     if (!HiEnergyAuth.isConfigured() && !hasApiKey_()) {
       return { ok: false, code: 0, error: 'AUTH0_NOT_CONFIGURED', body: null };
@@ -288,7 +303,7 @@ var HiEnergyApi = (function () {
     saveCredentials: saveCredentials_,
     clearCredentials: clearCredentials_,
     getApiBase: apiBase_,
-    getMcpUrl: HiEnergyMcp.getMcpUrl,
+    getMcpUrl: getMcpUrl_,
     search: search_,
     universalSearch: universalSearch_,
     advertiserByDomain: advertiserByDomain_,
