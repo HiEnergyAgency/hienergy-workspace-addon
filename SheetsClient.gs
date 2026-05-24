@@ -913,6 +913,22 @@ var HiEnergySheets = (function () {
       };
 
       var sharedTarget = exported.spreadsheetId || targetSpreadsheetId;
+
+      var dealsAddition = exportSecondaryTab_(
+        'deals',
+        { query: normalized },
+        advertiserDeadline,
+        sharedTarget
+      );
+      if (dealsAddition.rowCount) {
+        exported.sheetCount = (exported.sheetCount || 1) + 1;
+        exported.rowCount += dealsAddition.rowCount;
+        exported.byType.deals = {
+          rowCount: dealsAddition.rowCount,
+          exhausted: !!dealsAddition.exhausted
+        };
+      }
+
       var transactionsAddition = exportSecondaryTab_(
         'transactions',
         { query: normalized, days: 30 },
