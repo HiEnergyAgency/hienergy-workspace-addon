@@ -212,12 +212,38 @@ npm install -g @google/clasp
 clasp login
 
 cd hienergy-workspace-addon
+npm install
 cp .clasp.json.example .clasp.json
 clasp create --title "Hi Energy AI" --type workspace-add-on
 clasp push
 ```
 
 Set script properties in the Apps Script UI, then **Deploy** → **Test deployments**.
+
+### Lint and specs
+
+This repo includes ESLint for all `.gs` sources and Vitest specs that load Apps Script modules in a mocked Google runtime.
+
+```bash
+npm run lint          # ESLint all Apps Script + test files
+npm run test          # Vitest specs (27 tests)
+npm run check:manifest # Verify appsscript.json wiring
+npm run validate      # lint + test + manifest check
+```
+
+Spec coverage:
+
+| Spec file | Covers |
+|-----------|--------|
+| `test/config.spec.js` | Branding and MCP defaults |
+| `test/api-client.spec.js` | `universal_search`, auth gates, REST fallback |
+| `test/mcp-client.spec.js` | MCP JSON-RPC client behavior |
+| `test/gmail-client.spec.js` | Gmail context and domain search |
+| `test/contacts-client.spec.js` | People API contact lookup |
+| `test/main.spec.js` | MCP tool argument mapping |
+| `test/manifest.spec.js` | `appsscript.json` scopes and triggers |
+
+CI runs `npm run validate` on every push to `main` via GitHub Actions.
 
 Or run the setup helper from the Apps Script editor (edit placeholder values first):
 

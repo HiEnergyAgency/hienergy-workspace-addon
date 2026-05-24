@@ -1,0 +1,22 @@
+{
+  "name": "hienergy-workspace-addon",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hi Energy AI Google Workspace add-on",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "validate": "npm run lint && npm run test && npm run check:manifest",
+    "check:manifest": "node scripts/check-manifest.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/google-apps-script": "^2.0.5",
+    "eslint": "^9.39.1",
+    "eslint-plugin-googleappsscript": "^1.0.5",
+    "globals": "^16.5.0",
+    "vitest": "^4.1.7"
+  }
+}
