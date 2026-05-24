@@ -3,18 +3,71 @@ var HiEnergyMcpExport = (function () {
     return (record && record.attributes) || record || {};
   }
 
+  function idOf_(row, a) {
+    return String((row && row.id) || (a && a.id) || '');
+  }
+
+  function advertiserHiEnergyUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.advertiserPath || '/a/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function dealAdminUrl_(id) {
+    var clean = String(id || '').trim();
+    if (!clean) {
+      return '';
+    }
+    return (
+      HiEnergyConfig.appOrigin +
+      (HiEnergyConfig.dealAdminPath || '/admin/deals/') +
+      encodeURIComponent(clean)
+    );
+  }
+
+  function first_(/* values */) {
+    for (var i = 0; i < arguments.length; i += 1) {
+      var v = arguments[i];
+      if (v !== undefined && v !== null && v !== '') {
+        return v;
+      }
+    }
+    return '';
+  }
+
   function advertiserRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
+      var id = idOf_(row, a);
       return [
-        a.display_name || a.name || row.id || '',
+        first_(a.display_name, a.name, id),
+        first_(a.publisher_name, a.publisher_display_name, a.publisher),
         a.domain || '',
         a.network_name || '',
-        a.program_status || a.status || '',
-        a.commission_rate || a.average_commission_rate || '',
-        a.slug || '',
+        first_(a.program_status, a.status, a.advertiser_status),
+        first_(a.commission_rate, a.average_commission_rate, a.default_commission_rate),
+        a.category || a.vertical || a.industry || '',
+        a.country || a.region || '',
+        a.currency || '',
+        a.epc || a.average_epc || '',
+        a.conversion_rate || '',
+        a.cookie_duration || a.cookie_window || '',
+        a.payout_type || a.commission_type || '',
+        a.minimum_payout || '',
+        a.tags ? (Array.isArray(a.tags) ? a.tags.join(', ') : String(a.tags)) : '',
+        a.notes || a.description || '',
+        a.contact_email || '',
+        a.signup_url || a.join_url || a.application_url || '',
         a.url || '',
-        String(row.id || a.id || '')
+        a.slug || '',
+        id,
+        advertiserHiEnergyUrl_(a.slug || id)
       ];
     });
   }
@@ -22,12 +75,26 @@ var HiEnergyMcpExport = (function () {
   function dealRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
+      var id = idOf_(row, a);
       return [
-        a.title || a.name || row.id || '',
+        first_(a.title, a.name, id),
         a.advertiser_name || '',
+        a.advertiser_id || '',
+        first_(a.deal_type, a.type, a.category),
+        first_(a.description, a.summary),
+        first_(a.code, a.coupon_code, a.promo_code),
+        first_(a.discount, a.value, a.amount, a.percent_off),
+        a.currency || '',
         a.country || '',
+        a.start_date || a.starts_at || '',
+        a.end_date || a.ends_at || a.expires_at || '',
         a.status || '',
-        String(row.id || a.id || '')
+        a.network_name || '',
+        a.tags ? (Array.isArray(a.tags) ? a.tags.join(', ') : String(a.tags)) : '',
+        a.url || a.landing_url || '',
+        id,
+        dealAdminUrl_(id),
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
       ];
     });
   }
@@ -35,13 +102,22 @@ var HiEnergyMcpExport = (function () {
   function transactionRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
+      var id = idOf_(row, a);
       return [
-        a.advertiser_name || a.advertiser_id || '',
-        a.commission_amount || a.commission || '',
+        first_(a.advertiser_name, a.advertiser_id),
+        a.publisher_name || a.publisher || '',
+        first_(a.commission_amount, a.commission),
+        first_(a.sale_amount, a.amount, a.order_value),
+        a.currency || '',
         a.network_name || '',
-        a.transaction_date || '',
+        a.transaction_date || a.event_date || a.created_at || '',
         a.status || '',
-        String(row.id || a.id || '')
+        first_(a.order_id, a.transaction_id),
+        a.product || a.sku || '',
+        a.country || '',
+        a.advertiser_id || '',
+        id,
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
       ];
     });
   }
@@ -49,12 +125,26 @@ var HiEnergyMcpExport = (function () {
   function contactRows_(rows) {
     return rows.map(function (row) {
       var a = attrs_(row);
+      var id = idOf_(row, a);
+      var fullName =
+        [a.given_name, a.family_name].filter(Boolean).join(' ') ||
+        a.full_name ||
+        a.name ||
+        '';
       return [
-        [a.given_name, a.family_name].filter(Boolean).join(' ') || a.email || row.id || '',
+        first_(fullName, a.email, id),
         a.email || '',
-        a.job_title || '',
+        a.job_title || a.title || '',
+        a.department || '',
+        a.advertiser_name || a.organization || '',
+        a.advertiser_id || '',
         a.phone || '',
-        String(row.id || a.id || '')
+        a.linkedin_url || a.linkedin || '',
+        a.country || a.location || '',
+        a.role || '',
+        a.notes || '',
+        id,
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
       ];
     });
   }
@@ -62,22 +152,93 @@ var HiEnergyMcpExport = (function () {
   var SHEET_SPECS_ = {
     advertisers: {
       title: 'Advertisers',
-      headers: ['Name', 'Domain', 'Network', 'Status', 'Commission', 'Slug', 'URL', 'ID'],
+      headers: [
+        'Name',
+        'Publisher',
+        'Domain',
+        'Network',
+        'Status',
+        'Commission',
+        'Category',
+        'Country',
+        'Currency',
+        'EPC',
+        'Conversion rate',
+        'Cookie window',
+        'Payout type',
+        'Minimum payout',
+        'Tags',
+        'Notes',
+        'Contact email',
+        'Signup URL',
+        'External URL',
+        'Slug',
+        'ID',
+        'Hi Energy link'
+      ],
       rows: advertiserRows_
     },
     deals: {
       title: 'Deals',
-      headers: ['Title', 'Advertiser', 'Country', 'Status', 'ID'],
+      headers: [
+        'Title',
+        'Advertiser',
+        'Advertiser ID',
+        'Type',
+        'Description',
+        'Code',
+        'Discount',
+        'Currency',
+        'Country',
+        'Starts',
+        'Ends',
+        'Status',
+        'Network',
+        'Tags',
+        'Landing URL',
+        'ID',
+        'Hi Energy admin link',
+        'Advertiser Hi Energy link'
+      ],
       rows: dealRows_
     },
     transactions: {
       title: 'Transactions',
-      headers: ['Advertiser', 'Commission', 'Network', 'Date', 'Status', 'ID'],
+      headers: [
+        'Advertiser',
+        'Publisher',
+        'Commission',
+        'Sale amount',
+        'Currency',
+        'Network',
+        'Date',
+        'Status',
+        'Order ID',
+        'Product / SKU',
+        'Country',
+        'Advertiser ID',
+        'ID',
+        'Advertiser Hi Energy link'
+      ],
       rows: transactionRows_
     },
     contacts: {
       title: 'Contacts',
-      headers: ['Name', 'Email', 'Title', 'Phone', 'ID'],
+      headers: [
+        'Name',
+        'Email',
+        'Title',
+        'Department',
+        'Advertiser',
+        'Advertiser ID',
+        'Phone',
+        'LinkedIn',
+        'Country',
+        'Role',
+        'Notes',
+        'ID',
+        'Advertiser Hi Energy link'
+      ],
       rows: contactRows_
     }
   };

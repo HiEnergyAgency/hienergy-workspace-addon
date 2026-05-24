@@ -30,6 +30,7 @@ var HiEnergyConfig = (function () {
     authDocsUrl: APP_ORIGIN + '/api_documentation/mcp',
     advertiserPath: '/a/',
     dealPath: '/deals/',
+    dealAdminPath: '/admin/deals/',
     privacyPolicyUrl: APP_ORIGIN + '/privacy_policy',
     termsOfServiceUrl: APP_ORIGIN + '/terms_of_service',
     perTypeLimit: 5,
