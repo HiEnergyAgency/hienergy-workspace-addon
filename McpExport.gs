@@ -582,17 +582,38 @@ var HiEnergyMcpExport = (function () {
     ];
   }
 
+  function titleCase_(value) {
+    var str = String(value || '').trim();
+    if (!str) {
+      return '';
+    }
+    return str
+      .split(/\s+/)
+      .map(function (word) {
+        return word.length > 2
+          ? word.charAt(0).toUpperCase() + word.slice(1)
+          : word;
+      })
+      .join(' ');
+  }
+
   function createSheetTitle_(label, query, suffix) {
-    return (
-      HiEnergyConfig.sheetTitlePrefix +
-      ' ' +
-      label +
-      ' — ' +
-      (query || 'Search') +
-      (suffix ? ' (' + suffix + ')' : '') +
-      ' — ' +
-      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm')
+    var date = Utilities.formatDate(
+      new Date(),
+      Session.getScriptTimeZone(),
+      'MMM d, yyyy'
     );
+    var pretty = titleCase_(query) || 'Search';
+    var parts = [
+      HiEnergyConfig.sheetTitlePrefix,
+      label,
+      pretty
+    ];
+    if (suffix) {
+      parts.push(suffix);
+    }
+    parts.push(date);
+    return parts.join(' · ');
   }
 
   var EXPORT_CACHE_TTL_ = 21600;

@@ -40,7 +40,10 @@ function createGasContext(overrides) {
     Date: Date,
     encodeURIComponent: encodeURIComponent,
     Utilities: {
-      formatDate: function () {
+      formatDate: function (_date, _tz, pattern) {
+        if (pattern && /MMM d, yyyy/.test(pattern)) {
+          return 'Jan 1, 2026';
+        }
         return 'Jan 1, 2026';
       },
       sleep: function () {}

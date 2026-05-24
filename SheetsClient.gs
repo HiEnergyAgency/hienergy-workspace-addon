@@ -32,6 +32,31 @@ var HiEnergySheets = (function () {
     return PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propHostApp) === 'SHEETS';
   }
 
+  function renameIfUntitled_(spreadsheet, title) {
+    if (!title || !spreadsheet) {
+      return;
+    }
+    try {
+      var currentName = '';
+      if (typeof spreadsheet.getName === 'function') {
+        currentName = String(spreadsheet.getName() || '').trim();
+      }
+      if (
+        !currentName ||
+        /^untitled\s*spreadsheet$/i.test(currentName) ||
+        currentName === 'Untitled'
+      ) {
+        if (typeof spreadsheet.rename === 'function') {
+          spreadsheet.rename(String(title).substring(0, 200));
+        } else if (typeof spreadsheet.setName === 'function') {
+          spreadsheet.setName(String(title).substring(0, 200));
+        }
+      }
+    } catch (err) {
+      console.warn('Could not rename spreadsheet: ' + err);
+    }
+  }
+
   function writeTablesToSpreadsheet_(spreadsheet, tables, options) {
     options = options || {};
     var totalRows = 0;
@@ -50,6 +75,9 @@ var HiEnergySheets = (function () {
       sheet.clear();
       totalRows += writeTable_(sheet, table.headers, table.rows);
     });
+    if (options.title) {
+      renameIfUntitled_(spreadsheet, options.title);
+    }
     return {
       ok: true,
       url: spreadsheet.getUrl(),
@@ -57,7 +85,8 @@ var HiEnergySheets = (function () {
       sheetCount: tables.length,
       rowCount: totalRows,
       usedActiveSpreadsheet: true,
-      appended: !!options.append
+      appended: !!options.append,
+      title: options.title || ''
     };
   }
 
@@ -117,7 +146,7 @@ var HiEnergySheets = (function () {
     try {
       var active = activeSpreadsheet_();
       if (active) {
-        return writeTablesToSpreadsheet_(active, tables);
+        return writeTablesToSpreadsheet_(active, tables, { title: title });
       }
 
       var spreadsheet = SpreadsheetApp.create(String(title).substring(0, 200));
@@ -435,7 +464,10 @@ var HiEnergySheets = (function () {
     options = options || {};
     var active = activeSpreadsheet_();
     if (active) {
-      var written = writeTablesToSpreadsheet_(active, tables, { append: !!options.append });
+      var written = writeTablesToSpreadsheet_(active, tables, {
+        append: !!options.append,
+        title: title
+      });
       if (!options.skipSession && options.exportType && options.pagination) {
         saveExportSession_(options.exportType, options.params || {}, options.pagination, written.spreadsheetId);
       }

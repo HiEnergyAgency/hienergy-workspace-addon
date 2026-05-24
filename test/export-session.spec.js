@@ -99,6 +99,19 @@ describe('exportPaginated + session', function () {
     expect(sheets[0].values.length).toBeGreaterThanOrEqual(250);
   });
 
+  it('renames an Untitled spreadsheet to the export title with a date', function () {
+    const { ctx } = setupSheetsHost();
+    let renamedTo = '';
+    const active = ctx.SpreadsheetApp.getActiveSpreadsheet();
+    active.getName = function () { return 'Untitled spreadsheet'; };
+    active.rename = function (name) { renamedTo = name; };
+    ctx.HiEnergySheets.exportAdvertisers('nike', 'name');
+    expect(renamedTo).toMatch(/Hi Energy AI/);
+    expect(renamedTo).toMatch(/Advertisers/);
+    expect(renamedTo).toMatch(/Nike/);
+    expect(renamedTo).toMatch(/Jan 1, 2026/);
+  });
+
   it('writes a Contacts tab alongside Advertisers when advertiser_contacts return data', function () {
     const { ctx, sheets } = setupSheetsHost();
     let contactCalls = 0;
