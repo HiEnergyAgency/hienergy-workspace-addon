@@ -525,7 +525,7 @@ var HiEnergySheets = (function () {
       skipSession: !!options.skipSession
     });
 
-    return mergeExportMeta_(written, result.body, {
+    var mergedResult = mergeExportMeta_(written, result.body, {
       exhausted: result.pagination.exhausted,
       hasMore: result.pagination.hasMore,
       timedOut: result.pagination.timedOut,
@@ -533,6 +533,69 @@ var HiEnergySheets = (function () {
       nextPage: result.pagination.nextPage,
       seenKeys: result.pagination.seenKeys
     });
+    if (mergedResult && mergedResult.ok && exportType === 'advertisers') {
+      mergedResult.advertiserBatch = batch;
+    }
+    return mergedResult;
+  }
+
+  function advertiserSlugsFromBatch_(batch) {
+    var slugs = [];
+    var seen = {};
+    (batch || []).forEach(function (row) {
+      var attrs = (row && row.attributes) || row || {};
+      var slug = String(attrs.slug || attrs.id || (row && row.id) || '').trim();
+      if (slug && !seen[slug]) {
+        seen[slug] = true;
+        slugs.push(slug);
+      }
+    });
+    return slugs;
+  }
+
+  function appendContactsForAdvertisers_(batch, deadline, companyFallback) {
+    if (!HiEnergyApi || typeof HiEnergyApi.advertiserContacts !== 'function') {
+      return { rowCount: 0 };
+    }
+    var slugs = advertiserSlugsFromBatch_(batch);
+    if (!slugs.length) {
+      return { rowCount: 0 };
+    }
+    var collected = [];
+    for (var i = 0; i < slugs.length; i += 1) {
+      if (deadline && Date.now() > deadline) {
+        break;
+      }
+      var slug = slugs[i];
+      var resp;
+      try {
+        resp = HiEnergyApi.advertiserContacts(slug, 1, HiEnergyConfig.exportPageSize || 100);
+      } catch (err) {
+        continue;
+      }
+      if (!resp || !resp.ok) {
+        continue;
+      }
+      var rows = (resp.body && resp.body.data) || (Array.isArray(resp.body) ? resp.body : []);
+      if (!rows.length) {
+        continue;
+      }
+      collected = collected.concat(rows);
+    }
+    if (!collected.length) {
+      return { rowCount: 0 };
+    }
+    var tables = HiEnergyMcpExport.tablesFromMcpResult(
+      'get_advertiser_contacts',
+      { data: collected },
+      { advertiserCompanyFallback: companyFallback || '' }
+    );
+    var active = activeSpreadsheet_();
+    if (active) {
+      var written = writeTablesToSpreadsheet_(active, tables, { append: true });
+      return { rowCount: written.rowCount || 0 };
+    }
+    return { rowCount: 0 };
   }
 
   function exportMoreAll_(session, fetchAll) {
@@ -718,8 +781,23 @@ var HiEnergySheets = (function () {
       return domainSheet;
     }
 
-    var exported = exportPaginated_('advertisers', { query: normalized, searchMode: mode });
+    var advertiserDeadline = Date.now() + (HiEnergyConfig.exportTimeBudgetMs || 22000);
+    var exported = exportPaginated_('advertisers', { query: normalized, searchMode: mode }, {
+      deadline: advertiserDeadline
+    });
     if (exported.ok) {
+      var contactsAddition = appendContactsForAdvertisers_(
+        exported.advertiserBatch || [],
+        advertiserDeadline,
+        normalized
+      );
+      if (contactsAddition.rowCount) {
+        exported.sheetCount = (exported.sheetCount || 1) + 1;
+        exported.rowCount = (exported.rowCount || 0) + contactsAddition.rowCount;
+        exported.byType = exported.byType || {};
+        exported.byType.advertisers = { rowCount: exported.byType.advertisers ? exported.byType.advertisers.rowCount : exported.rowCount - contactsAddition.rowCount, exhausted: !!exported.exhausted };
+        exported.byType.contacts = { rowCount: contactsAddition.rowCount, exhausted: true };
+      }
       HiEnergyMcpExport.cacheAdvertiserSearch(normalized, mode, {
         ok: true,
         body: { data: [], meta: { fetched: exported.rowCount } }

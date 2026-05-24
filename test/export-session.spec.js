@@ -98,6 +98,38 @@ describe('exportPaginated + session', function () {
     expect(apiCalls.length).toBeGreaterThanOrEqual(3);
     expect(sheets[0].values.length).toBeGreaterThanOrEqual(250);
   });
+
+  it('writes a Contacts tab alongside Advertisers when advertiser_contacts return data', function () {
+    const { ctx, sheets } = setupSheetsHost();
+    let contactCalls = 0;
+    ctx.HiEnergyApi.advertiserContacts = function (slug) {
+      contactCalls += 1;
+      return {
+        ok: true,
+        body: {
+          data: [
+            {
+              id: slug + '-c1',
+              attributes: {
+                given_name: 'Sam',
+                family_name: 'Smith',
+                email: 'sam@' + slug + '.com',
+                advertiser_id: slug,
+                advertiser_name: 'Brand ' + slug
+              }
+            }
+          ]
+        }
+      };
+    };
+
+    const result = ctx.HiEnergySheets.exportAdvertisers('nike', 'name');
+    expect(result.ok).toBe(true);
+    expect(contactCalls).toBeGreaterThan(0);
+    const tabs = sheets.map(function (s) { return s.name; });
+    expect(tabs).toContain('Contacts');
+    expect(result.byType && result.byType.contacts.rowCount).toBeGreaterThan(0);
+  });
 });
 
 describe('exportMoreFromSession', function () {
