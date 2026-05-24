@@ -115,8 +115,9 @@ function handleDisconnectSettings() {
 
 function handleSearch(e) {
   var form = (e && e.formInput) || {};
-  var query = String(form.query || '').trim();
-  var scope = String(form.scope || 'all');
+  var params = (e && e.parameters) || {};
+  var query = String(form.query || params.query || '').trim();
+  var scope = String(form.scope || params.scope || 'all');
   var hostApp = resolveHostApp_(e);
   var resultOptions = { hostApp: hostApp };
 
@@ -413,7 +414,46 @@ function ensureAuthenticated_() {
 }
 
 function onCreateSheetAction(e) {
-  return HiEnergyCards.createSheet({ hostApp: resolveHostApp_(e) });
+  var params = (e && e.parameters) || {};
+  return HiEnergyCards.createSheet({
+    hostApp: resolveHostApp_(e),
+    exportType: params.exportType || '',
+    query: params.query || ''
+  });
+}
+
+function handleCreateSheet(e) {
+  ensureAuthenticated_();
+  var form = (e && e.formInput) || {};
+  var type = String(form.exportType || 'advertisers');
+  var query = String(form.query || '').trim();
+  var searchMode = String(form.searchMode || 'name');
+  var days = String(form.transactionDays || '30');
+
+  var needsQuery = type !== 'transactions';
+  if (needsQuery && !query) {
+    return HiEnergyCards.error(
+      'Add a search term',
+      'Enter a brand, domain, or keyword above, then click Create sheet.'
+    );
+  }
+
+  if (type === 'advertisers') {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertisers(query, searchMode));
+  }
+  if (type === 'deals') {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportDeals(query));
+  }
+  if (type === 'transactions') {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportTransactions(query, days));
+  }
+  if (type === 'advertiser_contacts') {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportAdvertiserContacts(query));
+  }
+  if (type === 'google_contacts') {
+    return HiEnergyCards.sheetResult(HiEnergySheets.exportGoogleContacts(query));
+  }
+  return HiEnergyCards.sheetResult(HiEnergySheets.exportSearch(query, 'all', searchMode));
 }
 
 function handleCreateSheetFromSearch(e) {

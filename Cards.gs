@@ -278,11 +278,11 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       sectionText_(
-        'Search Hi Energy AI advertisers, deals, and transactions inside Gmail, Sheets, Docs, Drive, Slides, and Calendar. Pick how you want to connect:'
+        'Search Hi Energy AI advertisers, deals, and transactions — and export up to 500 rows to Google Sheets — right from Gmail, Sheets, Docs, Slides, Drive, and Calendar.\n\nPick how you want to connect:'
       )
     );
 
-    var oauthSection = CardService.newCardSection().setHeader('Option 1 · OAuth (recommended)');
+    var oauthSection = CardService.newCardSection().setHeader('Sign in (recommended)');
     if (HiEnergyAuth.isConfigured()) {
       oauthSection
         .addWidget(
@@ -372,10 +372,24 @@ var HiEnergyCards = (function () {
 
     card.addSection(section);
 
+    if (!prefill) {
+      var examples = CardService.newCardSection().setHeader('Try an example');
+      ['Nike', 'Sephora', 'Adidas', 'summer sale'].forEach(function (example) {
+        examples.addWidget(
+          CardService.newTextButton()
+            .setText(example)
+            .setOnClickAction(
+              cardAction_('handleSearch', { query: example, scope: 'all' })
+            )
+        );
+      });
+      card.addSection(examples);
+    }
+
     var quickActions = CardService.newCardSection().setHeader('Quick actions');
     quickActions.addWidget(
       CardService.newTextButton()
-        .setText(isSheets ? 'Create tabs in this sheet' : 'Create new sheet')
+        .setText(isSheets ? 'Create tabs in this sheet' : 'Create a Google Sheet')
         .setOnClickAction(cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null))
     );
     if (isGmail) {
@@ -434,10 +448,17 @@ var HiEnergyCards = (function () {
   }
 
   function errorCard_(title, message) {
-    return CardService.newCardBuilder()
+    var card = CardService.newCardBuilder()
       .setHeader(header_(title, 'Something went wrong'))
-      .addSection(sectionText_(message))
-      .build();
+      .addSection(sectionText_(message));
+    card.addSection(
+      CardService.newCardSection().addWidget(
+        CardService.newTextButton()
+          .setText('Back to search')
+          .setOnClickAction(cardAction_('onSearchAction'))
+      )
+    );
+    return card.build();
   }
 
   function apiErrorCard_(result) {
@@ -1368,282 +1389,155 @@ var HiEnergyCards = (function () {
     return card.build();
   }
 
+  function recentExportChip_(label, query, when, handler) {
+    var section = CardService.newCardSection().setHeader(label);
+    var deco = CardService.newDecoratedText()
+      .setText('"' + (query || 'Recent') + '"')
+      .setWrapText(true);
+    if (when) {
+      deco.setBottomLabel('Cached ' + when);
+    }
+    section.addWidget(deco);
+    section.addWidget(
+      CardService.newTextButton()
+        .setText('Re-export to sheet')
+        .setOnClickAction(cardAction_(handler))
+    );
+    return section;
+  }
+
+  function exportTypeHintFor_(type) {
+    if (type === 'deals') {
+      return 'Try: coupon, sale, holiday';
+    }
+    if (type === 'transactions') {
+      return 'Advertiser or network (optional)';
+    }
+    if (type === 'advertiser_contacts') {
+      return 'Advertiser id or slug, e.g. nike';
+    }
+    if (type === 'google_contacts') {
+      return 'Name, email, or company';
+    }
+    return 'Brand or domain, e.g. Nike or nike.com';
+  }
+
   function createSheetCard_(options) {
     options = options || {};
-    var hostApp = options.hostApp || '';
+    var hostApp = options.hostApp || currentHostApp_();
     var cachedAdvertisers = HiEnergyMcpExport.readCachedAdvertiserSearch();
     var cachedDeals = HiEnergyMcpExport.readCachedDealsSearch();
     var cachedTransactions = HiEnergyMcpExport.readCachedTransactionsSearch();
     var cachedAdvertiserContacts = HiEnergyMcpExport.readCachedAdvertiserContactsSearch();
     var cachedGoogleContacts = HiEnergyMcpExport.readCachedGoogleContactsSearch();
-    var cached = HiEnergyMcpExport.readCachedSearch();
+    var cachedSearch = HiEnergyMcpExport.readCachedSearch();
+    var defaultType = String(options.exportType || 'advertisers');
+    var prefillQuery = String(options.query || '').trim();
+    if (!prefillQuery) {
+      if (defaultType === 'deals' && cachedDeals && cachedDeals.query) {
+        prefillQuery = cachedDeals.query;
+      } else if (defaultType === 'transactions' && cachedTransactions && cachedTransactions.query) {
+        prefillQuery = cachedTransactions.query;
+      } else if (defaultType === 'advertiser_contacts' && cachedAdvertiserContacts && cachedAdvertiserContacts.query) {
+        prefillQuery = cachedAdvertiserContacts.query;
+      } else if (defaultType === 'google_contacts' && cachedGoogleContacts && cachedGoogleContacts.query) {
+        prefillQuery = cachedGoogleContacts.query;
+      } else if (defaultType === 'everything' && cachedSearch && cachedSearch.query) {
+        prefillQuery = cachedSearch.query;
+      } else if (cachedAdvertisers && cachedAdvertisers.query) {
+        prefillQuery = cachedAdvertisers.query;
+      }
+    }
+
     var subtitle =
       hostApp === 'SHEETS'
-        ? 'Add Hi Energy data as tabs in this spreadsheet'
-        : 'Export Hi Energy and Google data to a new spreadsheet';
+        ? 'Add up to 500 rows as tabs in this spreadsheet'
+        : 'Generate a spreadsheet with up to 500 rows';
     var card = CardService.newCardBuilder().setHeader(header_('Create Sheet', subtitle));
 
+    var typeSelect = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle('Export')
+      .setFieldName('exportType')
+      .addItem('Advertisers', 'advertisers', defaultType === 'advertisers')
+      .addItem('Deals', 'deals', defaultType === 'deals')
+      .addItem('Transactions', 'transactions', defaultType === 'transactions')
+      .addItem('Advertiser contacts', 'advertiser_contacts', defaultType === 'advertiser_contacts')
+      .addItem('Google contacts', 'google_contacts', defaultType === 'google_contacts')
+      .addItem('Everything (one tab per type)', 'everything', defaultType === 'everything');
+
+    var queryInput = CardService.newTextInput()
+      .setFieldName('query')
+      .setTitle('Search')
+      .setValue(prefillQuery)
+      .setHint(exportTypeHintFor_(defaultType));
+
+    var advertiserModeSelect = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle('Match by (advertisers)')
+      .setFieldName('searchMode')
+      .addItem('Name', 'name', true)
+      .addItem('Domain', 'domain', false);
+
+    var daysSelect = CardService.newSelectionInput()
+      .setType(CardService.SelectionInputType.DROPDOWN)
+      .setTitle('Date range (transactions)')
+      .setFieldName('transactionDays')
+      .addItem('Last 30 days', '30', true)
+      .addItem('Last 60 days', '60', false)
+      .addItem('Last 90 days', '90', false);
+
     card.addSection(
       CardService.newCardSection()
-        .setHeader('Advertiser search')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('advertiserQuery')
-            .setTitle('Advertiser name or domain')
-            .setValue(cachedAdvertisers && cachedAdvertisers.query ? cachedAdvertisers.query : '')
-            .setHint('e.g. Nike or nike.com')
-        )
-        .addWidget(
-          CardService.newSelectionInput()
-            .setType(CardService.SelectionInputType.DROPDOWN)
-            .setTitle('Search by')
-            .setFieldName('advertiserSearchMode')
-            .addItem('Name (advertiser API)', 'name', true)
-            .addItem('Domain', 'domain', false)
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search advertisers & create sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateAdvertiserSheet')
-            )
-        )
+        .addWidget(typeSelect)
+        .addWidget(queryInput)
+        .addWidget(advertiserModeSelect)
+        .addWidget(daysSelect)
+        .addWidget(filledButton_('Create sheet', cardAction_('handleCreateSheet')))
     );
 
-    if (cachedAdvertisers && cachedAdvertisers.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest advertiser search')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText('"' + (cachedAdvertisers.query || '') + '"')
-              .setBottomLabel(
-                (cachedAdvertisers.searchMode === 'domain' ? 'Domain' : 'Name') +
-                  ' · cached ' +
-                  (cachedAdvertisers.cachedAt || '')
-              )
-              .setWrapText(true)
-          )
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Export latest advertiser results')
-              .setOnClickAction(
-                CardService.newAction().setFunctionName('handleExportCachedAdvertisersToSheet')
-              )
-          )
-      );
+    card.addSection(
+      sectionText_(
+        'Fetches up to <b>500 rows</b> per type, paginating until the export is complete. ' +
+          (hostApp === 'SHEETS'
+            ? 'Results are added as tabs in this spreadsheet.'
+            : 'A new spreadsheet is created in your Drive.')
+      )
+    );
+
+    var recentSection = null;
+    function addRecent(label, cached, handler) {
+      if (!cached || !cached.body) {
+        return;
+      }
+      if (!recentSection) {
+        recentSection = CardService.newCardSection().setHeader('Re-export from cache');
+        card.addSection(recentSection);
+      }
+      var deco = CardService.newDecoratedText()
+        .setTopLabel(label)
+        .setText('"' + (cached.query || 'Recent') + '"')
+        .setWrapText(true)
+        .setButton(
+          CardService.newTextButton()
+            .setText('Re-export')
+            .setOnClickAction(cardAction_(handler))
+        );
+      if (cached.cachedAt) {
+        deco.setBottomLabel('Cached ' + cached.cachedAt);
+      }
+      recentSection.addWidget(deco);
     }
 
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('Deals search')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('dealsQuery')
-            .setTitle('Deal keyword')
-            .setValue(cachedDeals && cachedDeals.query ? cachedDeals.query : '')
-            .setHint('e.g. coupon, sale, holiday')
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search deals & create sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateDealsSheet')
-            )
-        )
-    );
-
-    if (cachedDeals && cachedDeals.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest deals search')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText('"' + (cachedDeals.query || '') + '"')
-              .setBottomLabel('Cached ' + (cachedDeals.cachedAt || ''))
-              .setWrapText(true)
-          )
-          .addWidget(exportSheetButton_('deals'))
-      );
-    }
-
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('Transactions search')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('transactionsQuery')
-            .setTitle('Transaction keyword (optional)')
-            .setValue(cachedTransactions && cachedTransactions.query ? cachedTransactions.query : '')
-            .setHint('Advertiser or network name')
-        )
-        .addWidget(
-          CardService.newSelectionInput()
-            .setType(CardService.SelectionInputType.DROPDOWN)
-            .setTitle('Days')
-            .setFieldName('transactionDays')
-            .addItem('Last 30 days', '30', true)
-            .addItem('Last 60 days', '60', false)
-            .addItem('Last 90 days', '90', false)
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search transactions & create sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateTransactionsSheet')
-            )
-        )
-    );
-
-    if (cachedTransactions && cachedTransactions.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest transactions search')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText('"' + (cachedTransactions.query || 'Recent') + '"')
-              .setBottomLabel('Cached ' + (cachedTransactions.cachedAt || ''))
-              .setWrapText(true)
-          )
-          .addWidget(exportSheetButton_('transactions'))
-      );
-    }
-
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('Advertiser contacts (Hi Energy API)')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('advertiserContactsQuery')
-            .setTitle('Advertiser id or slug')
-            .setValue(cachedAdvertiserContacts && cachedAdvertiserContacts.query ? cachedAdvertiserContacts.query : '')
-            .setHint('e.g. nike or advertiser slug')
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Fetch contacts & create sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateAdvertiserContactsSheet')
-            )
-        )
-    );
-
-    if (cachedAdvertiserContacts && cachedAdvertiserContacts.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest advertiser contacts')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText(cachedAdvertiserContacts.query || '')
-              .setBottomLabel('Cached ' + (cachedAdvertiserContacts.cachedAt || ''))
-              .setWrapText(true)
-          )
-          .addWidget(exportSheetButton_('advertiser_contacts'))
-      );
-    }
-
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('Google Contacts')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('googleContactsQuery')
-            .setTitle('Contact search')
-            .setValue(cachedGoogleContacts && cachedGoogleContacts.query ? cachedGoogleContacts.query : '')
-            .setHint('Name, email, or company')
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Search contacts & create sheet')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateGoogleContactsSheet')
-            )
-        )
-    );
-
+    addRecent('Advertisers', cachedAdvertisers, 'handleExportCachedAdvertisersToSheet');
+    addRecent('Deals', cachedDeals, 'handleExportCachedDealsToSheet');
+    addRecent('Transactions', cachedTransactions, 'handleExportCachedTransactionsToSheet');
+    addRecent('Advertiser contacts', cachedAdvertiserContacts, 'handleExportCachedAdvertiserContactsToSheet');
     if (cachedGoogleContacts && cachedGoogleContacts.contacts && cachedGoogleContacts.contacts.length) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest Google Contacts search')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText('"' + (cachedGoogleContacts.query || '') + '"')
-              .setBottomLabel('Cached ' + (cachedGoogleContacts.cachedAt || ''))
-              .setWrapText(true)
-          )
-          .addWidget(exportSheetButton_('google_contacts'))
-      );
+      addRecent('Google contacts', { body: true, query: cachedGoogleContacts.query, cachedAt: cachedGoogleContacts.cachedAt },
+        'handleExportCachedGoogleContactsToSheet');
     }
-
-    card.addSection(
-      CardService.newCardSection()
-        .setHeader('Universal search')
-        .addWidget(
-          CardService.newTextInput()
-            .setFieldName('query')
-            .setTitle('Search query')
-            .setValue(cached && cached.query ? cached.query : '')
-            .setHint('Brand, domain, or deal keyword')
-        )
-        .addWidget(
-          CardService.newSelectionInput()
-            .setType(CardService.SelectionInputType.DROPDOWN)
-            .setTitle('Scope')
-            .setFieldName('scope')
-            .addItem('Everything', 'all', true)
-            .addItem('Advertisers (advertiser API)', 'advertisers', false)
-            .addItem('Deals (deals API)', 'deals', false)
-            .addItem('Transactions (transactions API)', 'transactions', false)
-        )
-        .addWidget(
-          CardService.newTextButton()
-            .setText('Create sheet from search')
-            .setOnClickAction(
-              CardService.newAction().setFunctionName('handleCreateSheetFromSearch')
-            )
-        )
-    );
-
-    if (cached && cached.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest search')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText('"' + (cached.query || '') + '"')
-              .setBottomLabel('Cached ' + (cached.cachedAt || ''))
-              .setWrapText(true)
-          )
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Export latest search results')
-              .setOnClickAction(
-                CardService.newAction().setFunctionName('handleExportCachedSearchToSheet')
-              )
-          )
-      );
-    }
-
-    var cachedMcp = HiEnergyMcpExport.readCachedMcpTool();
-    if (cachedMcp && cachedMcp.body) {
-      card.addSection(
-        CardService.newCardSection()
-          .setHeader('Latest MCP tool')
-          .addWidget(
-            CardService.newDecoratedText()
-              .setText(cachedMcp.toolName || 'MCP tool')
-              .setBottomLabel(cachedMcp.query || cachedMcp.cachedAt || '')
-              .setWrapText(true)
-          )
-          .addWidget(
-            CardService.newTextButton()
-              .setText('Export latest MCP tool results')
-              .setOnClickAction(
-                CardService.newAction().setFunctionName('handleExportMcpResultToSheet')
-              )
-          )
-      );
-    }
+    addRecent('Everything', cachedSearch, 'handleExportCachedSearchToSheet');
 
     return card.build();
   }
@@ -1697,15 +1591,22 @@ var HiEnergyCards = (function () {
       card.addSection(CardService.newCardSection().addWidget(primary));
     }
 
-    card.addSection(
-      CardService.newCardSection().addWidget(
-        CardService.newTextButton()
-          .setText('Create another sheet')
-          .setOnClickAction(
-            cardAction_('onCreateSheetAction', options.hostApp ? { hostApp: options.hostApp } : null)
-          )
-      )
+    var followUp = CardService.newCardSection();
+    followUp.addWidget(
+      CardService.newTextButton()
+        .setText('Create another sheet')
+        .setOnClickAction(
+          cardAction_('onCreateSheetAction', options.hostApp ? { hostApp: options.hostApp } : null)
+        )
     );
+    followUp.addWidget(
+      CardService.newTextButton()
+        .setText('Back to search')
+        .setOnClickAction(
+          cardAction_('onSearchAction', options.hostApp ? { hostApp: options.hostApp } : null)
+        )
+    );
+    card.addSection(followUp);
 
     return card.build();
   }
