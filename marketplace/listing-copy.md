@@ -28,6 +28,12 @@ When you open a message, the add-on shows the sender domain, matching Google Con
 **MCP tools**
 Browse and invoke Hi Energy MCP tools directly from the sidebar — list advertisers, search deals, and run server-side tools without switching tabs.
 
+**Export to Google Sheets**
+Search advertisers, deals, transactions, or contacts via the Hi Energy APIs and create formatted spreadsheets in one click.
+
+**Draft partnership emails**
+Generate Gmail drafts enriched with advertiser and deal data from the MCP server while reading partner email.
+
 **Secure sign-in**
 Sign in with Hi Energy AI (Auth0). Your Google Gmail and Contacts data stays in Google; only you can access your mailbox and contacts. Hi Energy data is fetched over HTTPS with your bearer token or API key.
 
@@ -59,6 +65,8 @@ affiliate marketing, advertisers, deals, Gmail add-on, Hi Energy, MCP, partnersh
 - Search
 - Settings
 - MCP Tools
+- Create Sheet
+- Draft Email
 
 ## Admin install note
 

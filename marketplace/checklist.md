@@ -29,7 +29,9 @@ Use this checklist in order. Check off each item as you complete it.
   - `gmail.addons.current.message.readonly`
   - `gmail.addons.execute`
   - `gmail.readonly` *(sensitive)*
+  - `gmail.compose` *(sensitive)*
   - `contacts.readonly` *(sensitive)*
+  - `spreadsheets`
   - `userinfo.email`
   - `script.external_request`
 - [ ] **Privacy policy URL**: https://app.hienergy.ai/privacy_policy

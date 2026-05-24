@@ -64,7 +64,9 @@ OAuth scopes (paste all):
   https://www.googleapis.com/auth/gmail.addons.current.message.readonly
   https://www.googleapis.com/auth/gmail.addons.execute
   https://www.googleapis.com/auth/gmail.readonly
+  https://www.googleapis.com/auth/gmail.compose
   https://www.googleapis.com/auth/contacts.readonly
+  https://www.googleapis.com/auth/spreadsheets
   https://www.googleapis.com/auth/userinfo.email
   https://www.googleapis.com/auth/script.external_request
 

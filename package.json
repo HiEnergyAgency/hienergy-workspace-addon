@@ -16,6 +16,7 @@
     "check:manifest": "node scripts/check-manifest.js",
     "check:marketplace": "node scripts/check-marketplace-assets.js",
     "create:app": "bash scripts/create-marketplace-app.sh",
+    "submit:marketplace": "bash scripts/create-marketplace-app.sh",
     "create:gcp-project": "bash scripts/create-gcp-project.sh",
     "setup:github-secrets": "bash scripts/setup-github-deploy-secrets.sh"
   },

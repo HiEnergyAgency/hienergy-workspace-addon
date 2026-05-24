@@ -45,6 +45,30 @@ Submit this content with your OAuth verification request in Google Cloud Console
 
 ---
 
+### `https://www.googleapis.com/auth/gmail.compose` *(sensitive)*
+
+**Why needed:** Create Gmail drafts from Hi Energy MCP data (partnership outreach templates with advertiser and deal context).
+
+**How used:** `GmailApp.createDraft()` when the user clicks **Draft Email** or **Create Gmail draft** after reviewing MCP-generated content. The add-on never sends email automatically.
+
+**User benefit:** Save time drafting partnership emails with accurate program details from Hi Energy AI.
+
+**Data handling:** Draft content is written only to the user's Gmail drafts folder.
+
+---
+
+### `https://www.googleapis.com/auth/spreadsheets`
+
+**Why needed:** Export Hi Energy search results (advertisers, deals, transactions, contacts) to new Google Sheets owned by the user.
+
+**How used:** `SpreadsheetApp.create()` when the user runs **Create Sheet** or **Export to Google Sheet** after an MCP/API search.
+
+**User benefit:** Share and analyze affiliate program data in Sheets without manual copy-paste.
+
+**Data handling:** Spreadsheets are created in the user's Google Drive; Hi Energy does not retain sheet contents.
+
+---
+
 ### `https://www.googleapis.com/auth/contacts.readonly` *(sensitive)*
 
 **Why needed:** Match the email sender to the user's Google Contacts (name, organization) for richer context.
@@ -83,10 +107,12 @@ Your video must show:
 
 1. App name **Hi Energy AI** visible in OAuth consent screen
 2. User installing/opening add-on in Gmail
-3. OAuth consent showing **gmail.readonly** and **contacts.readonly** with user accepting
+3. OAuth consent showing **gmail.readonly**, **gmail.compose**, and **contacts.readonly** with user accepting
 4. Feature using **gmail.readonly**: domain message search in sidebar
 5. Feature using **contacts.readonly**: contact match for email sender
-6. Clear narration or on-screen text explaining each sensitive scope use
+6. Feature using **gmail.compose**: create a Gmail draft from MCP advertiser data
+7. Feature using **spreadsheets**: export advertiser or deal search results to a Google Sheet
+8. Clear narration or on-screen text explaining each sensitive scope use
 
 Duration: 2–5 minutes. Upload unlisted YouTube or Google Drive link in verification form.
 
