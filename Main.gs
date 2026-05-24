@@ -31,6 +31,14 @@ function isSheetsHost_(hostApp) {
   return hostApp === 'SHEETS';
 }
 
+function isSlidesHost_(hostApp) {
+  return hostApp === 'SLIDES';
+}
+
+function isDocsHost_(hostApp) {
+  return hostApp === 'DOCS';
+}
+
 function onSettings() {
   return HiEnergyCards.settings();
 }

@@ -204,6 +204,28 @@ describe('HiEnergyCards search results', function () {
     expect(urls).toContain('https://app.hienergy.ai/a/4242');
   });
 
+  it('opens the same advertiser URL regardless of host (Sheets / Slides)', function () {
+    ctx.HiEnergyCards.searchResults('alo', {
+      ok: true,
+      body: {
+        results: {
+          advertisers: {
+            data: [{ id: '7', display_name: 'Alo Yoga' }],
+            total: 1
+          }
+        }
+      }
+    }, { hostApp: 'SLIDES' });
+    const urls = captured
+      .filter(function (entry) {
+        return entry.method === 'setUrl';
+      })
+      .map(function (entry) {
+        return entry.args[0];
+      });
+    expect(urls).toContain('https://app.hienergy.ai/a/7');
+  });
+
   it('falls back to in-app details card when no id is present', function () {
     ctx.HiEnergyCards.searchResults('alo', {
       ok: true,

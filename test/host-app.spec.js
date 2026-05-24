@@ -27,4 +27,11 @@ describe('resolveHostApp_', function () {
   it('reads hostApp from action parameters', function () {
     expect(ctx.resolveHostApp_({ parameters: { hostApp: 'SHEETS' } })).toBe('SHEETS');
   });
+
+  it('recognizes Slides as a non-Gmail host', function () {
+    const host = ctx.resolveHostApp_({ commonEventObject: { hostApp: 'SLIDES' } });
+    expect(host).toBe('SLIDES');
+    expect(ctx.isSlidesHost_(host)).toBe(true);
+    expect(ctx.isGmailHost_(host)).toBe(false);
+  });
 });

@@ -30,9 +30,13 @@ describe('appsscript.json manifest', function () {
     ]);
   });
 
-  it('enables Gmail and Sheets hosts', function () {
+  it('enables Gmail, Sheets, Slides, Docs, Drive, and Calendar hosts', function () {
     expect(manifest.addOns.gmail.contextualTriggers).toHaveLength(1);
     expect(manifest.addOns.sheets).toEqual({});
+    expect(manifest.addOns.slides).toEqual({});
+    expect(manifest.addOns.docs).toEqual({});
+    expect(manifest.addOns.drive).toEqual({});
+    expect(manifest.addOns.calendar).toEqual({});
     expect(manifest.addOns.common.homepageTrigger.enabled).toBe(true);
   });
 

@@ -306,11 +306,18 @@ var HiEnergyCards = (function () {
     options = options || {};
     var hostApp = options.hostApp || '';
     var isGmail = !hostApp || hostApp === 'GMAIL';
+    var isSheets = hostApp === 'SHEETS';
+    var isSlides = hostApp === 'SLIDES';
+    var isDocs = hostApp === 'DOCS';
 
-    var subtitle =
-      hostApp === 'SHEETS'
-        ? 'Search and export into this spreadsheet'
-        : HiEnergyConfig.brandTagline;
+    var subtitle = HiEnergyConfig.brandTagline;
+    if (isSheets) {
+      subtitle = 'Search and export into this spreadsheet';
+    } else if (isSlides) {
+      subtitle = 'Look up Hi Energy AI from your presentation';
+    } else if (isDocs) {
+      subtitle = 'Look up Hi Energy AI from your document';
+    }
 
     var card = CardService.newCardBuilder().setHeader(header_('Search', subtitle));
 
@@ -344,7 +351,7 @@ var HiEnergyCards = (function () {
     var quickActions = CardService.newCardSection().setHeader('Quick actions');
     quickActions.addWidget(
       CardService.newTextButton()
-        .setText(hostApp === 'SHEETS' ? 'Create tabs in this sheet' : 'Create new sheet')
+        .setText(isSheets ? 'Create tabs in this sheet' : 'Create new sheet')
         .setOnClickAction(cardAction_('onCreateSheetAction', hostApp ? { hostApp: hostApp } : null))
     );
     if (isGmail) {
@@ -359,16 +366,39 @@ var HiEnergyCards = (function () {
         .setText('Browse MCP tools')
         .setOnClickAction(cardAction_('onMcpTools'))
     );
+    quickActions.addWidget(
+      CardService.newTextButton()
+        .setText('Open ' + HiEnergyConfig.brandName)
+        .setOpenLink(
+          CardService.newOpenLink()
+            .setUrl(HiEnergyConfig.appOrigin)
+            .setOpenAs(CardService.OpenAs.FULL_SIZE)
+        )
+    );
     card.addSection(quickActions);
 
-    if (hostApp === 'SHEETS') {
+    if (isSheets) {
       card.addSection(
         sectionText_(
           'Search results include a one-click <b>Export to this spreadsheet</b> button. ' +
             'Use <b>Create tabs</b> for advertisers, deals, transactions, and contacts in one go.'
         )
       );
-    } else if (hostApp === 'GMAIL') {
+    } else if (isSlides) {
+      card.addSection(
+        sectionText_(
+          'Open advertisers in <b>' + HiEnergyConfig.brandName + '</b> for screenshots, ' +
+            'or export search results to a new sheet you can chart and embed in your slides.'
+        )
+      );
+    } else if (isDocs) {
+      card.addSection(
+        sectionText_(
+          'Click an advertiser to open the Hi Energy AI page, or copy details into your document. ' +
+            'Export search results to a new sheet for tables you can paste into Docs.'
+        )
+      );
+    } else if (isGmail) {
       card.addSection(
         sectionText_(
           'Open an email to see sender context, or search Hi Energy AI advertisers, deals, and transactions below.'
