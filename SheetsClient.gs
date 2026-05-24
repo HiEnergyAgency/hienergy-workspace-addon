@@ -467,8 +467,10 @@ var HiEnergySheets = (function () {
     options = options || {};
     var active = activeSpreadsheet_();
     if (active) {
+      var appendMode =
+        options.append === undefined ? true : !!options.append;
       var written = writeTablesToSpreadsheet_(active, tables, {
-        append: !!options.append,
+        append: appendMode,
         title: title
       });
       if (!options.skipSession && options.exportType && options.pagination) {
@@ -821,6 +823,27 @@ var HiEnergySheets = (function () {
       deadline: advertiserDeadline
     });
     if (exported.ok) {
+      var advertiserRowsOnly = exported.rowCount || 0;
+      exported.byType = exported.byType || {};
+      exported.byType.advertisers = {
+        rowCount: advertiserRowsOnly,
+        exhausted: !!exported.exhausted
+      };
+
+      var transactionsAddition = exportSecondaryTab_(
+        'transactions',
+        { query: normalized, days: 30 },
+        advertiserDeadline
+      );
+      if (transactionsAddition.rowCount) {
+        exported.sheetCount = (exported.sheetCount || 1) + 1;
+        exported.rowCount += transactionsAddition.rowCount;
+        exported.byType.transactions = {
+          rowCount: transactionsAddition.rowCount,
+          exhausted: !!transactionsAddition.exhausted
+        };
+      }
+
       var contactsAddition = appendContactsForAdvertisers_(
         exported.advertiserBatch || [],
         advertiserDeadline,
@@ -828,10 +851,11 @@ var HiEnergySheets = (function () {
       );
       if (contactsAddition.rowCount) {
         exported.sheetCount = (exported.sheetCount || 1) + 1;
-        exported.rowCount = (exported.rowCount || 0) + contactsAddition.rowCount;
-        exported.byType = exported.byType || {};
-        exported.byType.advertisers = { rowCount: exported.byType.advertisers ? exported.byType.advertisers.rowCount : exported.rowCount - contactsAddition.rowCount, exhausted: !!exported.exhausted };
-        exported.byType.contacts = { rowCount: contactsAddition.rowCount, exhausted: true };
+        exported.rowCount += contactsAddition.rowCount;
+        exported.byType.contacts = {
+          rowCount: contactsAddition.rowCount,
+          exhausted: true
+        };
       }
       HiEnergyMcpExport.cacheAdvertiserSearch(normalized, mode, {
         ok: true,
@@ -839,6 +863,27 @@ var HiEnergySheets = (function () {
       });
     }
     return exported;
+  }
+
+  function exportSecondaryTab_(exportType, params, deadline) {
+    try {
+      var part = exportPaginated_(exportType, params, {
+        append: true,
+        skipSession: true,
+        deadline: deadline,
+        fetchAll: true
+      });
+      if (!part || !part.ok) {
+        return { rowCount: 0, exhausted: true };
+      }
+      return {
+        rowCount: part.rowsThisBatch || part.rowCount || 0,
+        exhausted: !!part.exhausted
+      };
+    } catch (err) {
+      console.warn('Secondary tab export failed (' + exportType + '): ' + err);
+      return { rowCount: 0, exhausted: true };
+    }
   }
 
   function exportCachedAdvertisers_() {
