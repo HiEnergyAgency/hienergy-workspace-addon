@@ -259,54 +259,50 @@ var HiEnergyApi = (function () {
     );
   }
 
-  function searchAdvertisers_(query, limit) {
+  function searchAdvertisers_(query, limit, page) {
     var rowLimit = limit || HiEnergyConfig.advertiserSearchLimit;
     var normalized = String(query || '').trim();
     if (!normalized) {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter an advertiser name to search.' };
     }
 
-    return withToolFallback_(
-      'search_advertisers',
-      {
-        name: normalized,
-        limit: rowLimit
-      },
-      '/advertisers',
-      {
-        query: {
-          name: normalized,
-          limit: rowLimit
-        }
-      }
-    );
+    var toolArgs = cleanArgs_({
+      name: normalized,
+      limit: rowLimit,
+      page: page || null
+    });
+    var restQuery = cleanArgs_({
+      name: normalized,
+      limit: rowLimit,
+      page: page || null
+    });
+
+    return withToolFallback_('search_advertisers', toolArgs, '/advertisers', { query: restQuery });
   }
 
-  function deals_(query, limit) {
+  function deals_(query, limit, page) {
     var rowLimit = limit || HiEnergyConfig.perTypeLimit;
     var normalized = String(query || '').trim();
     if (!normalized) {
       return { ok: false, error: 'MISSING_QUERY', message: 'Enter a deal keyword to search.' };
     }
 
-    return withToolFallback_(
-      'search_deals',
-      {
-        q: normalized,
-        limit: rowLimit
-      },
-      '/deals',
-      {
-        query: {
-          q: normalized,
-          limit: rowLimit
-        }
-      }
-    );
+    var toolArgs = cleanArgs_({
+      q: normalized,
+      limit: rowLimit,
+      page: page || null
+    });
+    var restQuery = cleanArgs_({
+      q: normalized,
+      limit: rowLimit,
+      page: page || null
+    });
+
+    return withToolFallback_('search_deals', toolArgs, '/deals', { query: restQuery });
   }
 
-  function searchDeals_(query, limit) {
-    return deals_(query, limit || HiEnergyConfig.sheetRowLimit);
+  function searchDeals_(query, limit, page) {
+    return deals_(query, limit || HiEnergyConfig.sheetRowLimit, page || null);
   }
 
   function transactions_(query, limit) {
@@ -316,6 +312,7 @@ var HiEnergyApi = (function () {
       days: options.days || 30,
       sort: options.sort || 'commission_desc',
       limit: rowLimit,
+      page: options.page || null,
       advertiser_id: options.advertiserId,
       q: options.q
     });
@@ -323,6 +320,7 @@ var HiEnergyApi = (function () {
       days: options.days || 30,
       sort: options.sort || 'commission_desc',
       limit: rowLimit,
+      page: options.page || null,
       advertiser_id: options.advertiserId || null,
       q: options.q || null
     });
@@ -345,7 +343,7 @@ var HiEnergyApi = (function () {
     return transactions_(options, options.limit || HiEnergyConfig.sheetRowLimit);
   }
 
-  function advertiserContacts_(advertiser) {
+  function advertiserContacts_(advertiser, page, limit) {
     var normalized = String(advertiser || '').trim();
     if (!normalized) {
       return {
@@ -355,11 +353,22 @@ var HiEnergyApi = (function () {
       };
     }
 
+    var toolArgs = cleanArgs_({
+      advertiser: normalized,
+      page: page || null,
+      limit: limit || null
+    });
+    var restQuery = cleanArgs_({
+      advertiser: normalized,
+      page: page || null,
+      limit: limit || null
+    });
+
     return withToolFallback_(
       'get_advertiser_contacts',
-      { advertiser: normalized },
+      toolArgs,
       '/advertisers/' + encodeURIComponent(normalized) + '/contacts',
-      { query: { advertiser: normalized } }
+      { query: restQuery }
     );
   }
 

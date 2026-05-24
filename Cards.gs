@@ -1672,13 +1672,20 @@ var HiEnergyCards = (function () {
 
     var rowCount = result.rowCount || 0;
     var sheetCount = result.sheetCount || 1;
+    var bottomLabel = result.usedActiveSpreadsheet ? 'In this spreadsheet' : 'New spreadsheet';
+    if (result.truncated && result.totalAvailable) {
+      bottomLabel =
+        'First ' + rowCount + ' of ' + result.totalAvailable + ' total — re-run for the next batch';
+    } else if (typeof result.totalAvailable === 'number' && result.totalAvailable > 0) {
+      bottomLabel = 'Complete set (' + result.totalAvailable + ' rows)';
+    }
     card.addSection(
       CardService.newCardSection()
         .addWidget(
           CardService.newDecoratedText()
             .setTopLabel(rowCount === 1 ? 'Row exported' : 'Rows exported')
             .setText(String(rowCount) + ' across ' + pluralize_(sheetCount, 'tab'))
-            .setBottomLabel(result.usedActiveSpreadsheet ? 'In this spreadsheet' : 'New spreadsheet')
+            .setBottomLabel(bottomLabel)
         )
     );
 

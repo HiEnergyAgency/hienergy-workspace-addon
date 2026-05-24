@@ -37,6 +37,7 @@ var HiEnergyConfig = (function () {
     messageLimit: 10,
     mcpToolLimit: 12,
     sheetRowLimit: 500,
+    exportPageSize: 100,
     sheetTitlePrefix: 'Hi Energy AI',
     advertiserSearchLimit: 500,
     sheetContactLimit: 500,
