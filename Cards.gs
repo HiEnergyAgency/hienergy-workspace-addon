@@ -1638,7 +1638,8 @@ var HiEnergyCards = (function () {
 
     card.addSection(
       sectionText_(
-        'Fetches up to <b>500 rows</b> per type, paginating until the export is complete. ' +
+        'Fetches up to <b>500 rows</b> per export, paging through the API until done. ' +
+          'After exporting, use <b>Add more rows</b> to append the next batch to this sheet. ' +
           (hostApp === 'SHEETS'
             ? 'Results are added as tabs in this spreadsheet.'
             : 'A new spreadsheet is created in your Drive.')
@@ -1707,9 +1708,20 @@ var HiEnergyCards = (function () {
     var rowCount = result.rowCount || 0;
     var sheetCount = result.sheetCount || 1;
     var bottomLabel = result.usedActiveSpreadsheet ? 'In this spreadsheet' : 'New spreadsheet';
-    if (result.truncated && result.totalAvailable) {
+    if (result.appended) {
+      bottomLabel = 'Added ' + (result.rowsThisBatch || rowCount) + ' more rows to this sheet';
+    } else if (result.hasMore) {
       bottomLabel =
-        'First ' + rowCount + ' of ' + result.totalAvailable + ' total — re-run for the next batch';
+        'Exported ' +
+        rowCount +
+        ' rows (up to ' +
+        HiEnergyConfig.sheetRowLimit +
+        ' per batch). Use Add more rows to keep paging.';
+    } else if (result.exhausted) {
+      bottomLabel = 'All available rows exported (' + rowCount + ')';
+    } else if (result.truncated && result.totalAvailable) {
+      bottomLabel =
+        'First ' + rowCount + ' of ' + result.totalAvailable + ' total — use Add more rows';
     } else if (typeof result.totalAvailable === 'number' && result.totalAvailable > 0) {
       bottomLabel = 'Complete set (' + result.totalAvailable + ' rows)';
     }
@@ -1732,6 +1744,21 @@ var HiEnergyCards = (function () {
     }
 
     var followUp = CardService.newCardSection();
+    if (result.hasMore) {
+      followUp.addWidget(
+        filledButton_(
+          'Add more rows (up to ' + HiEnergyConfig.sheetRowLimit + ')',
+          cardAction_('handleAddMoreRowsToSheet', options.hostApp ? { hostApp: options.hostApp } : null)
+        )
+      );
+      followUp.addWidget(
+        CardService.newTextButton()
+          .setText('Fetch all remaining rows')
+          .setOnClickAction(
+            cardAction_('handleFetchAllRemainingRows', options.hostApp ? { hostApp: options.hostApp } : null)
+          )
+      );
+    }
     followUp.addWidget(
       CardService.newTextButton()
         .setText('Create another sheet')

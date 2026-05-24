@@ -46,6 +46,7 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       return [
+        advertiserHiEnergyUrl_(a.slug || id),
         first_(a.display_name, a.name, id),
         first_(a.publisher_name, a.publisher_display_name, a.publisher),
         a.domain || '',
@@ -66,8 +67,7 @@ var HiEnergyMcpExport = (function () {
         a.signup_url || a.join_url || a.application_url || '',
         a.url || '',
         a.slug || '',
-        id,
-        advertiserHiEnergyUrl_(a.slug || id)
+        id
       ];
     });
   }
@@ -77,6 +77,8 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       return [
+        dealAdminUrl_(id),
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
         first_(a.title, a.name, id),
         a.advertiser_name || '',
         a.advertiser_id || '',
@@ -92,9 +94,7 @@ var HiEnergyMcpExport = (function () {
         a.network_name || '',
         a.tags ? (Array.isArray(a.tags) ? a.tags.join(', ') : String(a.tags)) : '',
         a.url || a.landing_url || '',
-        id,
-        dealAdminUrl_(id),
-        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
+        id
       ];
     });
   }
@@ -104,6 +104,7 @@ var HiEnergyMcpExport = (function () {
       var a = attrs_(row);
       var id = idOf_(row, a);
       return [
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
         first_(a.advertiser_name, a.advertiser_id),
         a.publisher_name || a.publisher || '',
         first_(a.commission_amount, a.commission),
@@ -116,8 +117,7 @@ var HiEnergyMcpExport = (function () {
         a.product || a.sku || '',
         a.country || '',
         a.advertiser_id || '',
-        id,
-        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
+        id
       ];
     });
   }
@@ -132,6 +132,7 @@ var HiEnergyMcpExport = (function () {
         a.name ||
         '';
       return [
+        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id),
         first_(fullName, a.email, id),
         a.email || '',
         a.job_title || a.title || '',
@@ -143,8 +144,7 @@ var HiEnergyMcpExport = (function () {
         a.country || a.location || '',
         a.role || '',
         a.notes || '',
-        id,
-        advertiserHiEnergyUrl_(a.advertiser_slug || a.advertiser_id)
+        id
       ];
     });
   }
@@ -153,6 +153,7 @@ var HiEnergyMcpExport = (function () {
     advertisers: {
       title: 'Advertisers',
       headers: [
+        'Hi Energy link',
         'Name',
         'Publisher',
         'Domain',
@@ -173,14 +174,15 @@ var HiEnergyMcpExport = (function () {
         'Signup URL',
         'External URL',
         'Slug',
-        'ID',
-        'Hi Energy link'
+        'ID'
       ],
       rows: advertiserRows_
     },
     deals: {
       title: 'Deals',
       headers: [
+        'Hi Energy admin link',
+        'Advertiser Hi Energy link',
         'Title',
         'Advertiser',
         'Advertiser ID',
@@ -196,15 +198,14 @@ var HiEnergyMcpExport = (function () {
         'Network',
         'Tags',
         'Landing URL',
-        'ID',
-        'Hi Energy admin link',
-        'Advertiser Hi Energy link'
+        'ID'
       ],
       rows: dealRows_
     },
     transactions: {
       title: 'Transactions',
       headers: [
+        'Advertiser Hi Energy link',
         'Advertiser',
         'Publisher',
         'Commission',
@@ -217,14 +218,14 @@ var HiEnergyMcpExport = (function () {
         'Product / SKU',
         'Country',
         'Advertiser ID',
-        'ID',
-        'Advertiser Hi Energy link'
+        'ID'
       ],
       rows: transactionRows_
     },
     contacts: {
       title: 'Contacts',
       headers: [
+        'Advertiser Hi Energy link',
         'Name',
         'Email',
         'Title',
@@ -236,8 +237,7 @@ var HiEnergyMcpExport = (function () {
         'Country',
         'Role',
         'Notes',
-        'ID',
-        'Advertiser Hi Energy link'
+        'ID'
       ],
       rows: contactRows_
     }
@@ -629,6 +629,36 @@ var HiEnergyMcpExport = (function () {
     return readCachedTypedExport_('google_contacts');
   }
 
+  function saveExportSession_(session) {
+    if (!session) {
+      return;
+    }
+    try {
+      PropertiesService.getUserProperties().setProperty(
+        HiEnergyConfig.propExportSession,
+        JSON.stringify(session)
+      );
+    } catch (err) {
+      console.warn('Could not save export session: ' + err);
+    }
+  }
+
+  function readExportSession_() {
+    try {
+      var raw = PropertiesService.getUserProperties().getProperty(HiEnergyConfig.propExportSession);
+      if (!raw) {
+        return null;
+      }
+      return JSON.parse(raw);
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function clearExportSession_() {
+    PropertiesService.getUserProperties().deleteProperty(HiEnergyConfig.propExportSession);
+  }
+
   return {
     tablesFromSearchBody: tablesFromSearchBody_,
     tablesFromMcpResult: tablesFromMcpResult_,
@@ -648,6 +678,9 @@ var HiEnergyMcpExport = (function () {
     cacheAdvertiserContactsSearch: cacheAdvertiserContactsSearch_,
     readCachedAdvertiserContactsSearch: readCachedAdvertiserContactsSearch_,
     cacheGoogleContactsSearch: cacheGoogleContactsSearch_,
-    readCachedGoogleContactsSearch: readCachedGoogleContactsSearch_
+    readCachedGoogleContactsSearch: readCachedGoogleContactsSearch_,
+    saveExportSession: saveExportSession_,
+    readExportSession: readExportSession_,
+    clearExportSession: clearExportSession_
   };
 })();

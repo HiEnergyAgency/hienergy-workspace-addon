@@ -89,7 +89,7 @@ var HiEnergyContacts = (function () {
     }
 
     var limit = maxResults || HiEnergyConfig.contactLimit;
-    var pageSize = Math.min(30, limit);
+    var pageSize = Math.min(100, limit);
 
     try {
       var contacts = [];

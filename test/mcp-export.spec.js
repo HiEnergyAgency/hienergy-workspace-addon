@@ -45,9 +45,12 @@ describe('HiEnergyMcpExport', function () {
     });
 
     expect(tables).toHaveLength(2);
-    expect(tables[0].headers).toContain('Name');
-    expect(tables[0].rows[0][0]).toBe('Acme');
-    expect(tables[1].rows[0][0]).toBe('Spring sale');
+    expect(tables[0].headers[0]).toBe('Hi Energy link');
+    expect(tables[0].rows[0][0]).toBe('https://app.hienergy.ai/a/1');
+    expect(tables[0].rows[0][1]).toBe('Acme');
+    expect(tables[1].headers[0]).toBe('Hi Energy admin link');
+    expect(tables[1].rows[0][0]).toBe('https://app.hienergy.ai/admin/deals/2');
+    expect(tables[1].rows[0][2]).toBe('Spring sale');
   });
 
   it('builds a partnership draft from advertiser context', function () {

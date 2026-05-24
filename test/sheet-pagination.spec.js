@@ -109,6 +109,31 @@ describe('HiEnergySheets.paginateRows', function () {
     expect(result.error).toBe('AUTH_REQUIRED');
   });
 
+  it('fetches the next page when the first page returns fewer rows than requested', function () {
+    const ctx = loadSheets();
+    const fetcher = function (page) {
+      if (page === 1) {
+        const rows = [];
+        for (let i = 0; i < 15; i += 1) {
+          rows.push({ id: String(i) });
+        }
+        return { ok: true, body: { data: rows } };
+      }
+      if (page === 2) {
+        const rows = [];
+        for (let i = 15; i < 30; i += 1) {
+          rows.push({ id: String(i) });
+        }
+        return { ok: true, body: { data: rows } };
+      }
+      return { ok: true, body: { data: [] } };
+    };
+
+    const result = ctx.HiEnergySheets.paginateRows(fetcher);
+    expect(result.body.data).toHaveLength(30);
+    expect(result.pagination.exhausted).toBe(true);
+  });
+
   it('keeps partial results when a later page fails', function () {
     const ctx = loadSheets();
     const firstPageRows = 100;

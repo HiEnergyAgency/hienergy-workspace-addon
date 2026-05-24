@@ -631,6 +631,22 @@ function handleExportMcpResultToSheet() {
   return HiEnergyCards.sheetResult(HiEnergySheets.exportCachedMcpTool());
 }
 
+function handleAddMoreRowsToSheet(e) {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(
+    HiEnergySheets.exportMoreFromSession(false),
+    { hostApp: resolveHostApp_(e) }
+  );
+}
+
+function handleFetchAllRemainingRows(e) {
+  ensureAuthenticated_();
+  return HiEnergyCards.sheetResult(
+    HiEnergySheets.exportMoreFromSession(true),
+    { hostApp: resolveHostApp_(e) }
+  );
+}
+
 function onDraftEmailAction(e) {
   ensureAuthenticated_();
   var hostApp = resolveHostApp_(e);
