@@ -5,7 +5,7 @@ describe('HiEnergyConfig', function () {
   loadGasFiles(ctx, ['Config.gs']);
 
   it('uses Hi Energy AI branding', function () {
-    expect(ctx.HiEnergyConfig.brandName).toBe('Hi Energy AI Workspace Add-on');
+    expect(ctx.HiEnergyConfig.brandName).toBe('Hi Energy AI');
     expect(ctx.HiEnergyConfig.brandTagline).toContain('affiliate');
     expect(ctx.HiEnergyConfig.brandLogoUrl).toContain('googleusercontent.com');
   });

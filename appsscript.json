@@ -36,7 +36,7 @@
   ],
   "addOns": {
     "common": {
-      "name": "Hi Energy AI Workspace Add-on",
+      "name": "Hi Energy AI",
       "logoUrl": "https://lh3.googleusercontent.com/Tp71UPO0ZbOXtS2p7NKJDWF1sLg0HrGWH9LO4F_EmweBAS58yU5R6TsZqG2Ae4jho5rEWEOVYkaxq3M8APpIrgwwit0=s128-rj-sc0x00ffffff",
       "openLinkUrlPrefixes": [
         "https://app.hienergy.ai/",

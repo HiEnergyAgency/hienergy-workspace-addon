@@ -7,7 +7,7 @@ var HiEnergyConfig = (function () {
   var PROP_HOST_APP = 'HIENERGY_HOST_APP';
   var DEFAULT_AUTH0_AUDIENCE = 'https://api.hienergyrocket.com/mcp';
   var DEFAULT_MCP_URL = 'https://app.hienergy.ai/mcp';
-  var BRAND_NAME = 'Hi Energy AI Workspace Add-on';
+  var BRAND_NAME = 'Hi Energy AI';
   var BRAND_TAGLINE = 'Search affiliate programs, advertisers, and deals';
   // Same PNG as the Hi Energy AI Chrome extension (icons/icon128.png).
   var BRAND_LOGO_URL =

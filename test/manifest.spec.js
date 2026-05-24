@@ -6,7 +6,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'appsscript.json'), 
 
 describe('appsscript.json manifest', function () {
   it('registers Hi Energy AI branding', function () {
-    expect(manifest.addOns.common.name).toBe('Hi Energy AI Workspace Add-on');
+    expect(manifest.addOns.common.name).toBe('Hi Energy AI');
     expect(manifest.addOns.common.logoUrl).toContain('googleusercontent.com');
     expect(manifest.addOns.common.layoutProperties.primaryColor).toBe('#8b5cf6');
   });
