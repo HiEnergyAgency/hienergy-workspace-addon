@@ -298,7 +298,8 @@ var HiEnergyMcpExport = (function () {
         a.email || '',
         a.job_title || a.title || '',
         a.phone || '',
-        linkedinProfile_(a)
+        linkedinProfile_(a),
+        id
       ];
     });
   }
@@ -367,7 +368,8 @@ var HiEnergyMcpExport = (function () {
         'Email',
         'Title',
         'Phone',
-        'LinkedIn profile'
+        'LinkedIn profile',
+        'CID'
       ],
       rows: contactRows_
     }
