@@ -144,7 +144,7 @@ function handleSearch(e) {
   ensureAuthenticated_();
 
   if (scope === 'advertisers') {
-    var advertiserResult = HiEnergyApi.searchAdvertisers(query);
+    var advertiserResult = HiEnergyApi.searchAdvertisers(query, HiEnergyConfig.interactiveSearchLimit);
     if (advertiserResult.ok) {
       HiEnergyMcpExport.cacheAdvertiserSearch(query, 'name', advertiserResult);
       var rows = (advertiserResult.body && advertiserResult.body.data) || [];
@@ -172,7 +172,7 @@ function handleSearch(e) {
   }
 
   if (scope === 'deals') {
-    var dealsResult = HiEnergyApi.searchDeals(query);
+    var dealsResult = HiEnergyApi.searchDeals(query, HiEnergyConfig.interactiveSearchLimit);
     if (dealsResult.ok) {
       HiEnergyMcpExport.cacheDealsSearch(query, dealsResult);
     }
@@ -180,7 +180,11 @@ function handleSearch(e) {
   }
 
   if (scope === 'transactions') {
-    var transactionsResult = HiEnergyApi.searchTransactions({ q: query, days: 30 });
+    var transactionsResult = HiEnergyApi.searchTransactions({
+      q: query,
+      days: 30,
+      limit: HiEnergyConfig.interactiveSearchLimit
+    });
     if (transactionsResult.ok) {
       HiEnergyMcpExport.cacheTransactionsSearch(query, transactionsResult, { days: 30 });
     }

@@ -33,6 +33,7 @@ var HiEnergyConfig = (function () {
     privacyPolicyUrl: APP_ORIGIN + '/privacy_policy',
     termsOfServiceUrl: APP_ORIGIN + '/terms_of_service',
     perTypeLimit: 5,
+    interactiveSearchLimit: 25,
     contactLimit: 10,
     messageLimit: 10,
     mcpToolLimit: 12,
