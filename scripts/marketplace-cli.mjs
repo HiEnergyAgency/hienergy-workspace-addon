@@ -302,7 +302,22 @@ async function runStatus({ token, authSource }) {
 
   const script = await getScriptProject(token);
   const scriptOk = !script.error;
-  console.log(`  ${statusIcon(scriptOk)} Apps Script project "${script.title || SCRIPT_ID}" reachable`);
+  const scopeIssue =
+    !!script.error &&
+    (script.error.status === 'PERMISSION_DENIED' ||
+      script.error.code === 401 ||
+      script.error.code === 403);
+  if (scriptOk) {
+    console.log(`  ✅ Apps Script project "${script.title || SCRIPT_ID}" reachable`);
+  } else if (scopeIssue) {
+    console.log(
+      `  ⚠️  Apps Script project "${SCRIPT_ID}" — cannot verify with current auth ` +
+        `(${authSource} token lacks script.projects scope). Confirm GCP link in: ` +
+        `Apps Script → Project Settings → Google Cloud Platform (GCP) Project = ${PROJECT}`
+    );
+  } else {
+    console.log(`  ❌ Apps Script project "${SCRIPT_ID}" reachable`);
+  }
 
   const deployments = getClaspDeployments();
   const deployOk = deployments.ok && deployments.productionLine;
