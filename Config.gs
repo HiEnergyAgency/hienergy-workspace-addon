@@ -53,7 +53,7 @@ var HiEnergyConfig = (function () {
     sheetContactLimit: 500,
     mcpProtocolVersion: '2025-11-25',
     mcpClientName: BRAND_NAME,
-    mcpClientVersion: '1.0.0',
+    mcpClientVersion: '1.1.0',
     auth0Scope: 'openid profile email',
     defaultAuth0Audience: DEFAULT_AUTH0_AUDIENCE
   };
